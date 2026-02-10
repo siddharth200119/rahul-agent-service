@@ -52,6 +52,20 @@ class MessageService:
             return [Message(**row) for row in rows]
 
     @staticmethod
+    def get_messages_by_conversation_desc(conversation_id: int, limit: int = 20) -> List[Message]:
+        query = """
+            SELECT id, conversation_id, role, content, metadata, timestamp
+            FROM messages
+            WHERE conversation_id = %s
+            ORDER BY timestamp DESC
+            LIMIT %s;
+        """
+        with get_db_cursor(commit=False) as cursor:
+            cursor.execute(query, (conversation_id, limit))
+            rows = cursor.fetchall()
+            return [Message(**row) for row in rows]
+
+    @staticmethod
     def update_message(id: int, data: MessageUpdate) -> Optional[Message]:
         fields = []
         values = []

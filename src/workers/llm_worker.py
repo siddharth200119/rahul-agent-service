@@ -15,24 +15,26 @@ async def process_job(message_id: int):
     try:
         await update_state(message_id, "processing")
         
-        # Simulate LLM Generation
-        response_text = ""
-        mock_response = "Hello! This is a streamed response from the LLM worker. I am generating this text chunk by chunk to demonstrate the streaming capability."
+        # 1. Fetch Assistant Message for Conversation ID
+        from src.services.message_service import MessageService
+        assistant_msg = MessageService.get_message(message_id)
+        if not assistant_msg:
+            logger.error(f"Message {message_id} not found")
+            return
+
+        # 2. Invoke Agent & Stream
+        from src.utils.invoke_agent import invoke_agent
         
-        chunks = mock_response.split(" ")
-        for i, word in enumerate(chunks):
-            chunk = word + " "
-            await append_chunk(message_id, chunk)
-            response_text += chunk
-            # Simulate latency
-            await asyncio.sleep(0.2)
-            
+        response_text = ""
+        async for chunk in invoke_agent(assistant_msg.conversation_id, message_id):
+             await append_chunk(message_id, chunk)
+             response_text += chunk
+        
         # Finalize
         await update_state(message_id, "done")
         
         # Persist to DB
         logger.info(f"Persisting message {message_id} to DB")
-        from src.services.message_service import MessageService # Import here to avoid circulars if any
         # The message ID here is the ASSISTANT message ID that was created as a placeholder
         # We just need to update its content
         
