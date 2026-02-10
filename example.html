@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Service Streaming Demo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 250px;
+            border-right: 1px solid #ddd;
+            padding-right: 20px;
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        .control-panel {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        .chat-container {
+            border: 1px solid #ddd;
+            height: 500px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+        }
+
+        .assistant-message {
+            background-color: #f1f8e9;
+            align-self: flex-start;
+        }
+
+        .system-message {
+            color: #888;
+            text-align: center;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            align-self: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 8px;
+            width: 70%;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            margin: 0;
+            font-family: inherit;
+        }
+
+        .conv-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .conv-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .conv-item.active {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .conv-title {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .conv-date {
+            font-size: 0.8em;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <h3>Conversations</h3>
+        <button id="btnLoadConvs">Refresh List</button>
+        <div id="convList">Loading...</div>
+    </div>
+
+    <div class="main-content">
+        <h1>Streaming Demo</h1>
+
+        <div class="control-panel">
+            <button id="btnCreateConv" style="width: auto;">Start New Conversation</button>
+            <span id="convStatus" style="margin-left: 10px; color: #666;">Select or create a conversation</span>
+        </div>
+
+        <div id="chatContainer" class="chat-container">
+            <div class="system-message">Select a conversation to see history...</div>
+        </div>
+
+        <div class="control-panel" style="display: flex; gap: 10px;">
+            <input type="text" id="inputMessage" placeholder="Type a message..." disabled style="flex: 1;">
+            <button id="btnSend" disabled style="width: auto;">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:3030';
+        let currentConversationId = null;
+
+        // UI Elements
+        const convList = document.getElementById('convList');
+        const btnLoadConvs = document.getElementById('btnLoadConvs');
+        const btnCreateConv = document.getElementById('btnCreateConv');
+        const btnSend = document.getElementById('btnSend');
+        const inputMessage = document.getElementById('inputMessage');
+        const convStatus = document.getElementById('convStatus');
+        const chatContainer = document.getElementById('chatContainer');
+
+        async function fetchConversations() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/conversations?user_id=1`); // Hardcoded user_id=1
+                const data = await res.json();
+                renderConversations(data.data || []);
+            } catch (e) {
+                console.error(e);
+                convList.textContent = 'Error loading conversations';
+            }
+        }
+
+        function renderConversations(conversations) {
+            convList.innerHTML = '';
+            if (conversations.length === 0) {
+                convList.textContent = 'No conversations found.';
+                return;
+            }
+
+            conversations.forEach(c => {
+                const div = document.createElement('div');
+                div.className = `conv-item ${c.id === currentConversationId ? 'active' : ''}`;
+                div.onclick = () => loadConversation(c.id, c.title);
+
+                div.innerHTML = `
+                    <div class="conv-title">ID: ${c.id} - ${c.title || 'Untitled'}</div>
+                    <div class="conv-date">${new Date(c.created_at).toLocaleString()}</div>
+                `;
+                convList.appendChild(div);
+            });
+        }
+
+        async function loadConversation(id, title) {
+            currentConversationId = id;
+            convStatus.textContent = `ID: ${id} - ${title || 'Untitled'}`;
+            chatContainer.innerHTML = ''; // Clear chat
+
+            // Re-render list to update active state
+            const items = document.querySelectorAll('.conv-item');
+            items.forEach(item => item.classList.remove('active'));
+            // (Simple toggle logic would be better but re-fetching is fine for demo)
+
+            btnSend.disabled = false;
+            inputMessage.disabled = false;
+
+            // Fetch Messages
+            try {
+                const res = await fetch(`${BASE_URL}/api/conversations/${id}/messages`);
+                const data = await res.json();
+                const messages = data.data || [];
+
+                if (messages.length === 0) {
+                    appendMessage('system', 'No messages yet.');
+                } else {
+                    messages.forEach(m => {
+                        appendMessage(m.role, m.content, m.id);
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+                appendMessage('system', 'Error loading history.');
+            }
+        }
+
+        // Helper to append message
+        function appendMessage(role, text, id = null) {
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            if (id) div.id = `msg-${id}`;
+            if (role === 'system') div.className = 'message system-message';
+
+            const content = document.createElement('pre');
+            content.textContent = text;
+            div.appendChild(content);
+
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return content; // Return content element for updating
+        }
+
+        // 1. Create Conversation
+        btnCreateConv.onclick = async () => {
+            const title = prompt("Enter conversation title:", "New Chat");
+            if (!title) return;
+
+            try {
+                const res = await fetch(`${BASE_URL}/api/conversations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: 1, agent: 'demo_bot', title: title })
+                });
+                const data = await res.json();
+
+                if (data.status_code === 201) {
+                    await fetchConversations(); // Refresh list
+                    loadConversation(data.data.id, title);
+                } else {
+                    alert('Error creating conversation: ' + data.message);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Request failed');
+            }
+        };
+
+        // 2. Send Message & Stream
+        btnSend.onclick = async () => {
+            const text = inputMessage.value.trim();
+            if (!text) return;
+
+            // UI Updates
+            inputMessage.value = '';
+            appendMessage('user', text);
+            const assistantContentElem = appendMessage('assistant', '...'); // Placeholder
+
+            try {
+                // POST message
+                const res = await fetch(`${BASE_URL}/api/conversations/${currentConversationId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: currentConversationId,
+                        role: 'user',
+                        content: text,
+                        metadata: { source: 'html_demo' }
+                    })
+                });
+                const data = await res.json();
+
+                if (data.status_code === 201) {
+                    const replyId = data.data.id;
+                    // Connect SSE
+                    connectSSE(replyId, assistantContentElem);
+                } else {
+                    assistantContentElem.textContent = 'Error: ' + data.message;
+                }
+            } catch (e) {
+                console.error(e);
+                assistantContentElem.textContent = 'Network Error';
+            }
+        };
+
+        function connectSSE(messageId, container) {
+            const evtSource = new EventSource(`${BASE_URL}/sse/message-reply/${messageId}`);
+            let fullText = '';
+            let isFirstChunk = true;
+
+            evtSource.onmessage = (event) => {
+                if (isFirstChunk) {
+                    container.textContent = ''; // Clear placeholder
+                    isFirstChunk = false;
+                }
+                fullText += event.data;
+                container.textContent = fullText;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            evtSource.addEventListener('done', (e) => {
+                console.log('Stream done');
+                evtSource.close();
+            });
+
+            evtSource.addEventListener('error', (e) => {
+                if (e.data) {
+                    console.error('Stream Error:', e.data);
+                    container.textContent += `\n[Error: ${e.data}]`;
+                }
+                evtSource.close();
+            });
+
+            evtSource.onerror = (e) => {
+                if (evtSource.readyState === EventSource.CLOSED) {
+                    console.log('Connection closed');
+                } else {
+                    console.log('SSE Error', e);
+                    evtSource.close();
+                }
+            };
+        }
+
+        // Init
+        btnLoadConvs.onclick = fetchConversations;
+        fetchConversations();
+    </script>
+</body>
+
+</html>

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from src.api import main_router as APIRouter
+from src.sse.router import router as SSERouter
 from src.middlewares.logger import LoggingMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 import os
 from src.events import startup, shutdown
 from contextlib import asynccontextmanager
@@ -22,7 +24,16 @@ async def lifespan(app: FastAPI):
 
 app.add_middleware(LoggingMiddleware)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(APIRouter)
+app.include_router(SSERouter)
 
 if __name__ == "__main__":
     import uvicorn

@@ -9,6 +9,8 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "python-dotenv>=1.2.1",
     "raw-agents==0.1.2",
+    "redis>=7.1.1",
+    "sse-starlette>=3.2.0",
     "uvicorn>=0.40.0",
     "yoyo-migrations>=9.0.0",
 ]

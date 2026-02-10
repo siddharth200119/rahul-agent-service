@@ -7,13 +7,29 @@ from src.services.message_service import MessageService
 router = APIRouter()
 
 @router.post("/conversations/{conversation_id}/messages", response_model=APIOutput[Message])
-def create_message(conversation_id: int, data: MessageCreate):
+async def create_message(conversation_id: int, data: MessageCreate):
     try:
         if data.conversation_id != conversation_id:
              return APIOutput.failure(message="Conversation ID mismatch", status_code=400)
              
-        message = MessageService.create_message(data)
-        return APIOutput.success(data=message, status_code=201)
+        # 1. Create User Message
+        user_msg = MessageService.create_message(data)
+        
+        # 2. Create Placeholder Assistant Message
+        assistant_data = MessageCreate(
+            conversation_id=conversation_id,
+            role="assistant",
+            content="", # Empty content initially
+            metadata={"status": "pending"}
+        )
+        assistant_msg = MessageService.create_message(assistant_data)
+        
+        # 3. Enqueue Job for Worker
+        from src.utils.redis import enqueue_job
+        await enqueue_job(assistant_msg.id)
+        
+        # 4. Return Assistant Message (so client can subscribe to its ID)
+        return APIOutput.success(data=assistant_msg, status_code=201)
     except Exception as e:
         return APIOutput.failure(message=str(e))
 
