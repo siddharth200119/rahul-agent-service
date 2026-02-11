@@ -13,4 +13,6 @@ dependencies = [
     "sse-starlette>=3.2.0",
     "uvicorn>=0.40.0",
     "yoyo-migrations>=9.0.0",
+    "pandas>=2.2.0",
+    "openpyxl>=3.1.0",
 ]

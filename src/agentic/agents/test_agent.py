@@ -3,6 +3,7 @@ from RAW.modals import Message
 from src.utils import logger
 from src.agentic.llms.primary import get_primary_llm
 from src.agentic.tools.weather import weather_tool
+from src.agentic.tools.database.get_schema import get_schema_tool
 
 def get_test_agent(user_id: int, history: list[Message] = []) -> Agent:
     """
@@ -17,7 +18,7 @@ def get_test_agent(user_id: int, history: list[Message] = []) -> Agent:
     return Agent(
         name=name,
         base_prompt=base_prompt,
-        tools=[weather_tool],
+        tools=[weather_tool, get_schema_tool],
         llm=llm,
         logger=logger,
         history=history
