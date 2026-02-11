@@ -44,7 +44,6 @@ def get_database_agent(user_id: int = None, history: List[Message] = [], module:
 
     combined_db_schema_info = "\n\n".join(db_schemas)
 
-    tts_prompt = "You are a professional Database Assistant."
 
     base_prompt = f"""
 You are a highly capable Database Assistant Agent. You have DIRECT access to databases through your provided tools.
@@ -84,7 +83,5 @@ Proceed with the user's request using your tools.
         history=history
     )
 
-    # Added as a custom attribute since Agent doesn't have set_tts_prompt
-    bot.tts_prompt = tts_prompt
 
     return bot

@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import pandas as pd
 import base64
 from io import BytesIO
@@ -10,8 +9,9 @@ from typing import AsyncGenerator
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 from src.utils import logger
+from src.utils.database import get_db_connection
 
-async def final_merge_executor(query: str, download_excel: bool = False) -> AsyncGenerator[str, None]:
+async def final_merge_executor(query: str, download_excel: bool = False, conversation_name: str = "default_session") -> AsyncGenerator[str, None]:
     """
     Execute custom SQL on session SQLite to merge/join previous query outputs.
     """
@@ -20,12 +20,13 @@ async def final_merge_executor(query: str, download_excel: bool = False) -> Asyn
 
     try:
         # Using the same naming convention as in execute_query.py
-        db_path = Path("database_session") / "default_session.sqlite"
+        db_path = Path("database_session") / f"{conversation_name}.sqlite"
         if not db_path.exists():
             yield json.dumps({"success": False, "error": f"Session database not found: {db_path}"})
             return
 
-        with sqlite3.connect(db_path) as conn:
+        db_config = {"db_type": "sqlite", "db_path": str(db_path)}
+        with get_db_connection(db_config) as conn:
             cursor = conn.cursor()
             cursor.execute(query)
             
@@ -81,6 +82,14 @@ final_merge_tool_session = Tool(
             type="boolean",
             description="Whether to download the query results as an Excel file.",
             required=False
+        ),
+        ToolParam(
+            name="conversation_name",
+            type="string",
+            description="Session identifier to access persisted results.",
+            required=False,
+            default="default_session"
         )
     ]
 )
+

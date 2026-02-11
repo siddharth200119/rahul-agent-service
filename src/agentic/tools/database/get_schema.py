@@ -1,24 +1,8 @@
 import os
-import psycopg2
-from dotenv import load_dotenv
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 from src.utils import logger
-
-load_dotenv()
-
-def get_db_connection():
-    try:
-        return psycopg2.connect(
-            host=os.getenv("TARGET_DB_HOST", "localhost"),
-            port=int(os.getenv("TARGET_DB_PORT", 5432)),
-            dbname=os.getenv("TARGET_DB_NAME", "postgres"),
-            user=os.getenv("TARGET_DB_USER", "postgres"),
-            password=os.getenv("TARGET_DB_PASS", "postgres")
-        )
-    except Exception as e:
-        logger.error(f"Failed to connect to target database: {e}")
-        raise e
+from src.utils.database import get_db_connection
 
 def get_schema(table_names: list[str] = None) -> str:
     """

@@ -2,8 +2,6 @@ import os
 import json
 import base64
 import pandas as pd
-import psycopg2
-import sqlite3
 from io import BytesIO
 from datetime import datetime
 from decimal import Decimal
@@ -13,9 +11,9 @@ from typing import AsyncGenerator, Dict, Any
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 from src.utils import logger
-from .get_schema import get_db_connection
+from src.utils.database import get_db_connection
 
-async def execute_query_executor(dbname: str, query: str, download_excel: bool = False) -> AsyncGenerator[str, None]:
+async def execute_query_executor(dbname: str, query: str, download_excel: bool = False, conversation_name: str = "default_session") -> AsyncGenerator[str, None]:
     """
     Execute SQL query on actual database and optionally store output in session SQLite.
     Returns top 10 rows and success status.
@@ -26,18 +24,17 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
     
     conn = None
     try:
-        # Use existing connection logic from get_schema (adapted to respect dbname if needed, 
-        # but for now using the project's target DB as in get_schema)
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(query)
+        # Use existing connection logic from src.utils.database
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
 
-        if cursor.description:
-            colnames = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-        else:
-            colnames = []
-            rows = []
+            if cursor.description:
+                colnames = [desc[0] for desc in cursor.description]
+                rows = cursor.fetchall()
+            else:
+                colnames = []
+                rows = []
 
         def serialize_value(val):
             if isinstance(val, Decimal):
@@ -53,9 +50,6 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
 
         result["rows"] = all_rows[:10]
         result["success"] = True
-
-        cursor.close()
-        conn.close()
 
         if download_excel:
             if all_rows:
@@ -79,16 +73,14 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
                 yield "No rows returned to export to Excel."
                 return
 
-        # Simple SQLite session storage logic (replacing missing SQLiteWorker)
+        # Simple SQLite session storage logic
         try:
-            # We don't have a structured session_id here easily from the call signature, 
-            # so we use a generic naming or could potentially get it from context if added.
-            # Using a generic "default_session" for now or ignoring if preferred.
             session_dir = Path("database_session")
             session_dir.mkdir(parents=True, exist_ok=True)
-            db_path = session_dir / "default_session.sqlite"
+            db_path = session_dir / f"{conversation_name}.sqlite"
 
-            with sqlite3.connect(db_path) as s_conn:
+            db_config = {"db_type": "sqlite", "db_path": str(db_path)}
+            with get_db_connection(db_config) as s_conn:
                 s_cursor = s_conn.cursor()
                 
                 # Count existing query tables
@@ -122,8 +114,6 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
         result["success"] = False
         result["error"] = str(e)
         all_rows = []
-        if conn:
-            conn.close()
 
     yield json.dumps({ "type": "frontend_data", "rows": all_rows[:10] })
     yield json.dumps(result, ensure_ascii=False)
@@ -151,5 +141,13 @@ execute_query_tool_session = Tool(
             description="Download full result as Excel.",
             required=False,
         ),
+        ToolParam(
+            name="conversation_name",
+            type="string",
+            description="Session identifier to persist results for subsequent merging.",
+            required=False,
+            default="default_session"
+        ),
     ]
 )
+

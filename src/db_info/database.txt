@@ -1,0 +1,23 @@
+DATABASE: erp
+
+### INSTRUCTIONS:
+- You MUST use 'get_schema' to retrieve schema information before executing any queries.
+- You MUST use 'execute_query' tool to execute queries.
+- All queries in this context should be performed on the 'erp' database.
+
+---
+### TABLES:
+
+#### TABLE: purchase_jk_details
+DESCRIPTION: Contains details for purchase JK records.
+SPECIFIC OPERATIONS:
+- To get all purchase JK details: use 'purchase_jk_details' table.
+- Note: Always return all columns and ensure latest records appear first.
+
+#### TABLE: users
+DESCRIPTION: User account information.
+COLUMNS:
+- id (integer)
+- username (varchar)
+- email (varchar)
+- created_at (timestamp)
