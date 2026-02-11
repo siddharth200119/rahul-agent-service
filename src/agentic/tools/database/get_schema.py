@@ -1,24 +1,8 @@
 import os
-import psycopg2
-from dotenv import load_dotenv
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 from src.utils import logger
-
-load_dotenv()
-
-def get_db_connection():
-    try:
-        return psycopg2.connect(
-            host=os.getenv("TARGET_DB_HOST", "localhost"),
-            port=int(os.getenv("TARGET_DB_PORT", 5432)),
-            dbname=os.getenv("TARGET_DB_NAME", "postgres"),
-            user=os.getenv("TARGET_DB_USER", "postgres"),
-            password=os.getenv("TARGET_DB_PASS", "postgres")
-        )
-    except Exception as e:
-        logger.error(f"Failed to connect to target database: {e}")
-        raise e
+from src.utils.database import get_db_connection
 
 def get_schema(table_names: list[str] = None) -> str:
     """
@@ -75,7 +59,7 @@ def get_schema(table_names: list[str] = None) -> str:
             conn.close()
 
 get_schema_tool = Tool(
-    name="get_database_schema",
+    name="get_schema",
     description="Fetches schema information (tables, columns, datatypes) from the target database. Can filter by a list of table names.",
     function=get_schema,
     parameters=[
@@ -83,6 +67,7 @@ get_schema_tool = Tool(
             name="table_names",
             type="array",
             description="Optional list of table names to fetch schema for. If omitted, returns all public tables.",
+            items={"type": "string"},
             required=False
         )
     ]

@@ -5,25 +5,46 @@ from contextlib import contextmanager
 from src.utils import logger
 
 
+
+import sqlite3
+
 def get_db_config():
     return {
-        "host": os.getenv("DB_HOST", "localhost"),
-        "port": os.getenv("DB_PORT", "5432"),
-        "user": os.getenv("DB_USER", "postgres"),
-        "password": os.getenv("DB_PASS", "postgres"),
-        "dbname": os.getenv("DB_NAME", "email_service"),
+        "host": os.getenv("TARGET_DB_HOST", os.getenv("DB_HOST", "localhost")),
+        "port": os.getenv("TARGET_DB_PORT", os.getenv("DB_PORT", "5432")),
+        "user": os.getenv("TARGET_DB_USER", os.getenv("DB_USER", "postgres")),
+        "password": os.getenv("TARGET_DB_PASS", os.getenv("DB_PASS", "postgres")),
+        "dbname": os.getenv("TARGET_DB_NAME", os.getenv("DB_NAME", "postgres")),
+        "db_type": "postgres"
     }
 
 
 @contextmanager
-def get_db_connection():
-    """Context manager for database connections"""
+def get_db_connection(db_config: dict = None):
+    """Context manager for database connections (Postgres or SQLite)"""
     conn = None
-    config = get_db_config()
+    config = db_config or get_db_config()
+    db_type = config.get("db_type", "postgres")
+    
     try:
-        logger.debug(f"Connecting to database: {config['host']}:{config['port']}/{config['dbname']}")
-        conn = psycopg2.connect(**config)
-        logger.info(f"Database connection established")
+        if db_type == "postgres":
+            logger.debug(f"Connecting to Postgres database: {config.get('host')}:{config.get('port')}/{config.get('dbname')}")
+            conn = psycopg2.connect(
+                host=config.get("host"),
+                port=int(config.get("port", 5432)),
+                dbname=config.get("dbname"),
+                user=config.get("user"),
+                password=config.get("password")
+            )
+            logger.info(f"Postgres database connection established")
+        elif db_type == "sqlite":
+            db_path = config.get("db_path", "database.sqlite")
+            logger.debug(f"Connecting to SQLite database: {db_path}")
+            conn = sqlite3.connect(db_path)
+            logger.info(f"SQLite database connection established")
+        else:
+            raise ValueError(f"Unsupported db_type: {db_type}")
+            
         yield conn
     except Exception as e:
         logger.error(f"Database connection error: {e}")
@@ -32,6 +53,7 @@ def get_db_connection():
         if conn:
             conn.close()
             logger.debug("Database connection closed")
+
 
 
 class LoggingCursor:
@@ -93,11 +115,20 @@ class LoggingCursor:
         return getattr(self._cursor, name)
 
 
+
 @contextmanager
-def get_db_cursor(commit=True):
+def get_db_cursor(commit=True, db_config: dict = None):
     """Context manager for database cursor with auto-commit and logging"""
-    with get_db_connection() as conn:
-        raw_cursor = conn.cursor(cursor_factory=RealDictCursor)
+    config = db_config or get_db_config()
+    db_type = config.get("db_type", "postgres")
+    
+    with get_db_connection(config) as conn:
+        if db_type == "postgres":
+            raw_cursor = conn.cursor(cursor_factory=RealDictCursor)
+        elif db_type == "sqlite":
+            conn.row_factory = sqlite3.Row
+            raw_cursor = conn.cursor()
+        
         cursor = LoggingCursor(raw_cursor)
         try:
             yield cursor

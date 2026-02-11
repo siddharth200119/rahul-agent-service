@@ -57,15 +57,23 @@ async def invoke_agent(conversation_id: int, message_id: int) -> AsyncGenerator[
     logger.debug(f"--- Invoking Agent: {agent_name} ---")
     logger.debug(f"History Length: {len(raw_history)}")
 
-    # 3. Initialize Agent using Factory
-    # Future: We might select different agents based on `agent_name`
-    # For now, we use the test agent structure but pass the dynamic name
+    # 3. Initialize Agent based on agent_name
+    from src.agentic.agents.database_agent import get_database_agent
+    
     try:
-        agent = get_test_agent(user_id=conversation.user_id, history=raw_history)
+        if agent_name.startswith("DatabaseAgent"):
+            # Support format "DatabaseAgent:purchase" to load specific schema
+            module = None
+            if ":" in agent_name:
+                module = agent_name.split(":")[1]
+            agent = get_database_agent(user_id=conversation.user_id, history=raw_history, module=module)
+        else:
+            # Fallback to test agent for other names like "TestAgent" or "Agent"
+            agent = get_test_agent(user_id=conversation.user_id, history=raw_history)
     except Exception as e:
-        logger.error(f"Failed to initialize agent: {e}")
+        logger.error(f"Failed to initialize agent {agent_name}: {e}")
         yield f"Error initializing agent: {str(e)}"
-        return
+        return 
 
     # 4. Stream Response
     async for chunk in agent(user_input, stream=True):
