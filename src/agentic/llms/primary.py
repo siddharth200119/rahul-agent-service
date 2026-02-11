@@ -10,5 +10,5 @@ def get_primary_llm() -> GroqLLM:
     if not api_key:
         logger.error("GROQ_API_KEY not found in environment.")
     
-    model_name = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    model_name = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
     return GroqLLM(api_key=api_key, logger=logger, model=model_name)

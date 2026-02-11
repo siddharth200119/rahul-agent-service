@@ -75,7 +75,7 @@ def get_schema(table_names: list[str] = None) -> str:
             conn.close()
 
 get_schema_tool = Tool(
-    name="get_database_schema",
+    name="get_schema",
     description="Fetches schema information (tables, columns, datatypes) from the target database. Can filter by a list of table names.",
     function=get_schema,
     parameters=[
@@ -83,6 +83,7 @@ get_schema_tool = Tool(
             name="table_names",
             type="array",
             description="Optional list of table names to fetch schema for. If omitted, returns all public tables.",
+            items={"type": "string"},
             required=False
         )
     ]
