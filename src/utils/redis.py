@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from contextlib import asynccontextmanager
+from typing import Dict, Optional, Any
 from redis.asyncio import Redis
 from src.utils import logger
 
@@ -50,74 +50,77 @@ STATE_KEY_PREFIX = "message:{}:state"
 STREAM_KEY_PREFIX = "message:{}:stream"
 TTL_SECONDS = 3600  # 1 hour
 
-async def enqueue_job(message_id: int):
+
+async def enqueue_job(payload: Dict[str, Any]):
     """
-    Push message_id to work queue and init state
+    Push payload (id and type) to work queue and init state
+    Example payload: {"message_id": 10, "message_type": "whatsapp"}
     """
     r = await get_redis()
     
-    # Init state
-    state_key = STATE_KEY_PREFIX.format(message_id)
+    msg_id = payload.get("message_id")
+    msg_type = payload.get("message_type", "default")
+    
+    # Init state using the new type-aware prefix
+    state_key = STATE_KEY_PREFIX.format(msg_type, msg_id)
+    
     await r.hset(state_key, mapping={
         "status": "pending",
+        "message_type": msg_type,
         "created_at": str(asyncio.get_event_loop().time())
     })
     await r.expire(state_key, TTL_SECONDS)
 
-    # Push to queue (LIF0 or FIFO - LPUSH/RPOP usually FIFO)
-    # We'll use RPUSH so workers BLPOP from left (FIFO) or vice versa
-    await r.rpush(QUEUE_KEY, message_id)
+    # Push the whole JSON payload to the queue
+    payload_json = json.dumps(payload)
+    logger.info(f"Enqueuing {msg_type} job: {msg_id}")
+    await r.rpush(QUEUE_KEY, payload_json)
 
 
-async def claim_job() -> int | None:
+async def claim_job() -> Optional[Dict[str, Any]]:
     """
-    Worker calls this to get next job (non-blocking for demo, or blocking)
+    Worker calls this to get next job payload
     """
     r = await get_redis()
-    # BLPOP returns (key, value) tuple
     result = await r.blpop(QUEUE_KEY, timeout=5)
+    
     if result:
-        return int(result[1])
+        # result[1] is the JSON string
+        return json.loads(result[1])
     return None
 
-
-async def update_state(message_id: int, status: str, **kwargs):
+async def update_state(message_id: int, status: str, message_type: str = "default", **kwargs):
     """
-    Update status (processing, done, error) and other metadata
+    Update status using type-aware keys
     """
     r = await get_redis()
-    state_key = STATE_KEY_PREFIX.format(message_id)
+    state_key = STATE_KEY_PREFIX.format(message_type, message_id)
     mapping = {"status": status}
     mapping.update(kwargs)
     await r.hset(state_key, mapping=mapping)
-    # Reset TTL on activity
     await r.expire(state_key, TTL_SECONDS)
 
 
-async def append_chunk(message_id: int, chunk: str):
+async def append_chunk(message_id: int, chunk: str, message_type: str = "default"):
     """
-    Append text chunk to stream list
+    Append text chunk to type-aware stream list
     """
     r = await get_redis()
-    stream_key = STREAM_KEY_PREFIX.format(message_id)
+    stream_key = STREAM_KEY_PREFIX.format(message_type, message_id)
     await r.rpush(stream_key, chunk)
     await r.expire(stream_key, TTL_SECONDS)
 
 
-async def get_stream_history(message_id: int) -> list[str]:
-    """
-    Get all chunks so far
-    """
+async def get_message_state(message_id: int, message_type: str = "default") -> dict:
     r = await get_redis()
-    stream_key = STREAM_KEY_PREFIX.format(message_id)
-    # LRANGE 0 -1 gets everything
-    return await r.lrange(stream_key, 0, -1)
-
-
-async def get_message_state(message_id: int) -> dict:
-    r = await get_redis()
-    state_key = STATE_KEY_PREFIX.format(message_id)
+    state_key = STATE_KEY_PREFIX.format(message_type, message_id)
     return await r.hgetall(state_key)
+
+
+async def get_stream_history(message_id: int, message_type: str = "default") -> list[str]:
+    r = await get_redis()
+    stream_key = STREAM_KEY_PREFIX.format(message_type, message_id)
+    return await r.lrange(stream_key, 0, -1)
 
 
 async def wait_for_stream_item(message_id: int, start_index: int, timeout: int = 20) -> list[str]:
