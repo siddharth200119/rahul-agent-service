@@ -8,6 +8,16 @@ from src.utils import logger
 
 import sqlite3
 
+def get_app_db_config():
+    return {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": os.getenv("DB_PORT", "5432"),
+        "user": os.getenv("DB_USER", "postgres"),
+        "password": os.getenv("DB_PASS", "postgres"),
+        "dbname": os.getenv("DB_NAME", "postgres"),
+        "db_type": "postgres"
+    }
+
 def get_db_config():
     return {
         "host": os.getenv("TARGET_DB_HOST", os.getenv("DB_HOST", "localhost")),
@@ -119,7 +129,7 @@ class LoggingCursor:
 @contextmanager
 def get_db_cursor(commit=True, db_config: dict = None):
     """Context manager for database cursor with auto-commit and logging"""
-    config = db_config or get_db_config()
+    config = db_config or get_app_db_config()
     db_type = config.get("db_type", "postgres")
     
     with get_db_connection(config) as conn:

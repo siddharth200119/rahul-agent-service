@@ -1,3 +1,9 @@
+TARGET_DB_HOST=192.168.1.62
+TARGET_DB_PORT=5432
+TARGET_DB_USER=postgres
+TARGET_DB_PASS=POSTGRES_PASS
+TARGET_DB_NAME=erp
+
 DATABASE: erp
 
 ### INSTRUCTIONS:
@@ -21,3 +27,20 @@ COLUMNS:
 - username (varchar)
 - email (varchar)
 - created_at (timestamp)
+
+### QUERY CONTEXTS / BUSINESS LOGIC:
+
+1. Inquiry Status: To show inquiry status, look up the inquiry code in the 'inquiries' table to get the ID. Use this ID in 'workflow_tracking' to find the 'step_id', then link to 'workflow_step' for the 'step_name'. Also, consider the 'status_type_master' table for status details.
+2. Inventory Stock: Retrieve inventory stock levels based on product name using the 'inventory_units' table and 'inventory_units_status_master'.
+3. Warehouse Location: To determine which warehouse a product is located in, use the 'locations' table.
+4. Daily Dispatches: To count dispatches in a single day, filter the 'dispatch_master' table by the specific date.
+5. Pending Approvals: Identify pending approvals for the current user or system.
+6. Inventory vs Sales Orders: Describe inventory orders related to sales orders using the 'purchase_requirements' table.
+7. Sale Analytics: Analyze sale details, item lines, sale invoices, and tax details (revenue, status, etc.).
+8. Purchase Analytics: Evaluate purchase orders (quantity, tax, etc.) using 'purchase_details', 'purchase_import', 'purchase_item_details', 'purchase_jk_details', 'tax_details', and 'tax_type_master'.
+9. Customer Sales History: Retrieve historical sales data grouped by customer.
+10. Vendor Purchase History: Retrieve historical purchase data grouped by vendor.
+11. Inquiry Volume & Status: Calculate total inquiries and break them down by their current status.
+12. Salesperson Efficiency: Analyze which salesperson is most efficient in handling inquiries.
+13. Production Order Status: Monitor 'production_order_status' and 'production_runs_status', including history (e.g., for the last month).
+
