@@ -9,54 +9,50 @@ def get_schema(table_names: list[str] = None) -> str:
     Fetches the schema (table name, column name, data type) for the specified tables
     from the target database. If no tables are specified, fetches all public tables.
     """
-    conn = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
 
-        if table_names:
-            query = """
-                SELECT table_name, column_name, data_type
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                  AND table_name = ANY(%s)
-                ORDER BY table_name, ordinal_position;
-            """
-            cursor.execute(query, (table_names,))
-        else:
-            query = """
-                SELECT table_name, column_name, data_type
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                ORDER BY table_name, ordinal_position;
-            """
-            cursor.execute(query)
+            if table_names:
+                query = """
+                    SELECT table_name, column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = ANY(%s)
+                    ORDER BY table_name, ordinal_position;
+                """
+                cursor.execute(query, (table_names,))
+            else:
+                query = """
+                    SELECT table_name, column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name, ordinal_position;
+                """
+                cursor.execute(query)
 
-        rows = cursor.fetchall()
-        
-        if not rows:
-            return "No schema found or no tables matched."
+            rows = cursor.fetchall()
+            
+            if not rows:
+                return "No schema found or no tables matched."
 
-        schema_dict = {}
-        for table, column, dtype in rows:
-            schema_dict.setdefault(table, []).append(f"{column} ({dtype})")
+            schema_dict = {}
+            for table, column, dtype in rows:
+                schema_dict.setdefault(table, []).append(f"{column} ({dtype})")
 
-        output_lines = []
-        for table, columns in schema_dict.items():
-            output_lines.append(f"Table: {table}")
-            for col in columns:
-                output_lines.append(f"  - {col}")
-            output_lines.append("") # Empty line between tables
+            output_lines = []
+            for table, columns in schema_dict.items():
+                output_lines.append(f"Table: {table}")
+                for col in columns:
+                    output_lines.append(f"  - {col}")
+                output_lines.append("") # Empty line between tables
 
-        return "\n".join(output_lines)
+            return "\n".join(output_lines)
 
     except Exception as e:
         error_msg = f"Error fetching schema: {str(e)}"
         logger.error(error_msg)
         return error_msg
-    finally:
-        if conn:
-            conn.close()
 
 get_schema_tool = Tool(
     name="get_schema",
