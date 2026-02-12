@@ -25,7 +25,7 @@ async def process_job(payload_data):
     logger.info(f"Processing {message_type} message {message_id}")
     
     try:
-        await update_state(message_id, "processing")
+        await update_state(message_id, "processing", message_type=message_type)
         
         # 1. Fetch Message using specific service
         if message_type == "whatsapp":
@@ -45,11 +45,11 @@ async def process_job(payload_data):
         
         response_text = ""
         async for chunk in invoke_agent(assistant_msg.conversation_id, message_id, message_type):
-            await append_chunk(message_id, chunk)
+            await append_chunk(message_id, chunk, message_type=message_type)
             response_text += chunk
     
         # Finalize & Persist
-        await update_state(message_id, "done")
+        await update_state(message_id, "done", message_type=message_type)
         
         update_data = MessageUpdate(content=response_text.strip(), metadata={"processed": True})
         
@@ -73,7 +73,7 @@ async def process_job(payload_data):
 
     except Exception as e:
         logger.error(f"Error processing message {message_id}: {e}")
-        await update_state(message_id, "error", error=str(e))
+        await update_state(message_id, "error", message_type=message_type, error=str(e))
 
 async def main():
     logger.info("Starting LLM Worker...")

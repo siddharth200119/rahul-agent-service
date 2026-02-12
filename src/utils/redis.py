@@ -46,8 +46,8 @@ async def get_redis() -> Redis:
 # -------------------------
 
 QUEUE_KEY = "llm_work_queue"
-STATE_KEY_PREFIX = "message:{}:state"
-STREAM_KEY_PREFIX = "message:{}:stream"
+STATE_KEY_PREFIX = "message:{}:{}:state"
+STREAM_KEY_PREFIX = "message:{}:{}:stream"
 TTL_SECONDS = 3600  # 1 hour
 
 
@@ -123,7 +123,7 @@ async def get_stream_history(message_id: int, message_type: str = "default") -> 
     return await r.lrange(stream_key, 0, -1)
 
 
-async def wait_for_stream_item(message_id: int, start_index: int, timeout: int = 20) -> list[str]:
+async def wait_for_stream_item(message_id: int, start_index: int, timeout: int = 20, message_type: str = "default") -> list[str]:
     """
     Wait for new items in the stream.
     Since Redis Lists don't support blocking read from specific index,
@@ -131,7 +131,7 @@ async def wait_for_stream_item(message_id: int, start_index: int, timeout: int =
     For simplicity and reliability, we will POLL here with short sleep.
     """
     r = await get_redis()
-    stream_key = STREAM_KEY_PREFIX.format(message_id)
+    stream_key = STREAM_KEY_PREFIX.format(message_type, message_id)
     
     end_time = asyncio.get_event_loop().time() + timeout
     
@@ -148,7 +148,7 @@ async def wait_for_stream_item(message_id: int, start_index: int, timeout: int =
             return await r.lrange(stream_key, start_index, -1)
         
         # Check if processing is done/error to stop waiting
-        state = await get_message_state(message_id)
+        state = await get_message_state(message_id, message_type=message_type)
         if state.get("status") in ["done", "error"] and length <= start_index:
             return []
             

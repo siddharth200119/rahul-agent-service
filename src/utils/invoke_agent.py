@@ -40,8 +40,7 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     full_history = sorted(desc_history, key=lambda m: m.timestamp)
     # print(f"full_history : {full_history}")
     # Filter out the current assistant placeholder
-    # valid_msgs = [m for m in full_history if m.id != message_id]
-    valid_msgs = full_history
+    valid_msgs = [m for m in full_history if m.id != message_id]
 
     raw_history = []
     user_input = None
