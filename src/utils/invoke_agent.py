@@ -5,6 +5,8 @@ from typing import AsyncGenerator
 from src.utils import logger
 from src.services.message_service import MessageService
 from src.services.conversation_service import ConversationService
+from src.agentic.agents.database_agent import get_database_agent
+from src.agentic.agents.inquiry_agent import get_inquiry_agent
 
 # Load environment variables
 load_dotenv()
@@ -70,7 +72,7 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     logger.debug(f"History Length: {len(raw_history)}")
 
     # 3. Initialize Agent based on agent_name
-    from src.agentic.agents.database_agent import get_database_agent
+    
     
     try:
         if agent_name.startswith("DatabaseAgent"):
@@ -79,6 +81,9 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
             if ":" in agent_name:
                 module = agent_name.split(":")[1]
             agent = get_database_agent(user_id=conversation.user_id, history=raw_history, module=module)
+        elif agent_name.startswith("inquiry"):
+            agent = get_inquiry_agent(user_id=conversation.user_id, history=raw_history)
+            print("I am inquiry")
         else:
             # Fallback to test agent for other names like "TestAgent" or "Agent"
             agent = get_test_agent(user_id=conversation.user_id, history=raw_history)
