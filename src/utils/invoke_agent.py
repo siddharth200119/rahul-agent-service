@@ -40,8 +40,9 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     full_history = sorted(desc_history, key=lambda m: m.timestamp)
     # print(f"full_history : {full_history}")
     # Filter out the current assistant placeholder
-    valid_msgs = [m for m in full_history if m.id != message_id]
-    
+    # valid_msgs = [m for m in full_history if m.id != message_id]
+    valid_msgs = full_history
+
     raw_history = []
     user_input = None
     
@@ -78,8 +79,11 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
         yield f"Error initializing agent: {str(e)}"
         return
 
+    print(f"User Message: {user_input}")
+    
     # 4. Stream Response
     async for chunk in agent(user_input, stream=True):
+        
         if isinstance(chunk, dict) and "content" in chunk:
             content_obj = chunk["content"]
             
