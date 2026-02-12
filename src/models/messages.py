@@ -21,3 +21,12 @@ class Message(MessageBase):
 
     class Config:
         from_attributes = True
+
+class WhatsappMessage(MessageBase):
+    id: int
+    conversation_id: int
+    timestamp: datetime
+    from_number: str
+
+    class Config:
+        from_attributes = True
