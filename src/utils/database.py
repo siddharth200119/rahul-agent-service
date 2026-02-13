@@ -7,6 +7,9 @@ from src.utils import logger
 
 
 import sqlite3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_app_db_config():
     return {
@@ -151,3 +154,15 @@ def get_db_cursor(commit=True, db_config: dict = None):
             raise
         finally:
             cursor.close()
+
+def get_next_request_id(prefix: str) -> str:
+    """Generates a custom request ID using a Postgres sequence."""
+    seq_name = "so_analysis_seq" if prefix == "SO" else "pa_analysis_seq"
+    query = f"SELECT nextval('{seq_name}') as val"
+    
+    # Use get_db_config() to connect to the 'erp' database
+    with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+        cursor.execute(query)
+        result = cursor.fetchone()
+        val = result['val']
+        return f"{prefix}_{val}"

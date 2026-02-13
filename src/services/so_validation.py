@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 import json
-from src.utils.database import get_db_cursor
+from src.utils.database import get_db_cursor, get_db_config
 from src.agentic.llms.primary import get_primary_llm
 from src.utils import logger
 
@@ -14,7 +14,7 @@ class SOValidationService:
             try:
                 # 1. Fetch data from DB (Remote DB erp)
                 db_data = None
-                with get_db_cursor(commit=False) as cursor:
+                with get_db_cursor(commit=False, db_config=get_db_config()) as cursor:
                     query = """
                         SELECT gsm, number_of_sheets, item_gross_weight, item_name
                         FROM item_master 

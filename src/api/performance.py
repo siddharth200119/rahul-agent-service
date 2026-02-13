@@ -2,9 +2,9 @@ from fastapi import APIRouter, BackgroundTasks, Request, Header
 from src.models import APIOutput
 from src.services.performance_service import PerformanceService
 from src.utils.redis import wait_for_stream_item, get_message_state, get_stream_history
+from src.utils.database import get_next_request_id
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
-import uuid
 import json
 import asyncio
 from typing import Optional
@@ -17,7 +17,7 @@ async def create_performance_report(
     grn_number: str = Header(..., alias="grn_number")
 ):
     try:
-        report_id = str(uuid.uuid4())
+        report_id = get_next_request_id("PA")
         
         # Start report generation in background
         background_tasks.add_task(PerformanceService.generate_performance_report, report_id, grn_number)
