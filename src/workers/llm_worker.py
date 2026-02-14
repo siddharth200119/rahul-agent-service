@@ -56,15 +56,19 @@ async def process_job(payload_data):
         if message_type == "whatsapp":
                 
             node_api_url = f"{os.getenv('WHATSAPP_HOST', 'http://127.0.0.1:8080')}/send" 
-            clean_number = assistant_msg.from_number.split('@')[0] if assistant_msg.from_number else None
-            print(f"Number: {clean_number}")
+            recipient_id = assistant_msg.group_id if assistant_msg.group_id else assistant_msg.from_number
+            
+            clean_recipient = recipient_id.split('@')[0] if recipient_id else None
+
+            logger.info(f"Sending response to recipient: {recipient_id}")
             
             async with httpx.AsyncClient() as client:
                 try:
                     await client.post(node_api_url, json={
-                        "number": clean_number, 
+                        "number": assistant_msg.from_number, 
                         "message": response_text.strip() or "None",
-                        "conversation_id": assistant_msg.conversation_id
+                        "conversation_id": assistant_msg.conversation_id,
+                        "group_id": recipient_id
                     })
                 except Exception as e:
                     logger.error(f"Failed to notify Node service: {e}")

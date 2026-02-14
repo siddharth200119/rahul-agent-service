@@ -27,6 +27,7 @@ class WhatsappMessage(MessageBase):
     conversation_id: int
     timestamp: datetime
     from_number: str
+    group_id: Optional[str] = None
 
     class Config:
         from_attributes = True

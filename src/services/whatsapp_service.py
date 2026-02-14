@@ -5,8 +5,8 @@ from src.models.messages import MessageCreate, MessageUpdate, Message, WhatsappM
 
 class WhatsAppService:
     @staticmethod
-    def get_message(id: int) -> Optional[Message]:
-        # Maps whatsapp_messages columns to the standard Message model
+    def get_message(id: int) -> Optional[WhatsappMessage]:
+        # Added group_id to the SELECT statement
         query = """
             SELECT 
                 id, 
@@ -14,7 +14,8 @@ class WhatsAppService:
                 CASE WHEN is_from_me THEN 'assistant' ELSE 'user' END as role, 
                 body as content, 
                 NULL as metadata, 
-                from_number ,
+                from_number,
+                group_id,
                 timestamp
             FROM whatsapp_messages
             WHERE id = %s;
@@ -23,18 +24,22 @@ class WhatsAppService:
             cursor.execute(query, (id,))
             row = cursor.fetchone()
             if row:
+                # Ensure your WhatsappMessage Pydantic model has group_id: Optional[str]
                 return WhatsappMessage(**row)
             return None
 
     @staticmethod
     def get_messages_by_conversation_desc(conversation_id: int, limit: int = 20) -> List[Message]:
+        # Includes group_id so the LLM context knows the source if needed
         query = """
             SELECT 
                 id, 
                 conversation_id, 
                 CASE WHEN is_from_me THEN 'assistant' ELSE 'user' END as role, 
                 body as content, 
-                NULL as metadata, 
+                NULL as metadata,
+                from_number,
+                group_id,
                 timestamp
             FROM whatsapp_messages
             WHERE conversation_id = %s
@@ -47,22 +52,21 @@ class WhatsAppService:
             return [Message(**row) for row in rows]
 
     @staticmethod
-    def update_message(id: int, data: MessageUpdate) -> Optional[Message]:
+    def update_message(id: int, data: MessageUpdate) -> Optional[dict]:
         fields = []
         values = []
         
-        # Mapping standard 'content' update to WhatsApp 'body' column
         if data.content is not None:
             fields.append("body = %s")
             values.append(data.content)
             
-        # If your whatsapp_messages table doesn't have a metadata column yet, 
-        # we skip data.metadata or you can add it via migration.
+        # If you ever want to update group_id via this service, add logic here
 
         if not fields:
             return WhatsAppService.get_message(id)
 
         values.append(id)
+        # Added group_id to the RETURNING clause
         query = f"""
             UPDATE whatsapp_messages
             SET {", ".join(fields)}
@@ -74,6 +78,7 @@ class WhatsAppService:
                 body as content, 
                 NULL as metadata, 
                 from_number,
+                group_id,
                 timestamp;
         """
         
@@ -81,11 +86,6 @@ class WhatsAppService:
             cursor.execute(query, tuple(values))
             row = cursor.fetchone()
             if row:
-                # Update conversation's last_activity (optional but recommended)
-                # cursor.execute(
-                #     "UPDATE conversations SET last_message_at = NOW() WHERE id = %s;",
-                #     (row['conversation_id'],)
-                # )
                 return row
             return None
 
