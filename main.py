@@ -32,7 +32,7 @@ app.add_middleware(
         "https://localhost:5173", 
         "https://localhost:5174", 
         "https://localhost:5175", 
-        "https://192.168.1.62:5175", 
+        "http://192.168.1.62:5173", 
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",

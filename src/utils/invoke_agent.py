@@ -41,8 +41,14 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     desc_history = data_service.get_messages_by_conversation_desc(conversation_id, limit=20)
     full_history = sorted(desc_history, key=lambda m: m.timestamp)
     # print(f"full_history : {full_history}")
-    # Filter out the current assistant placeholder
-    valid_msgs = [m for m in full_history if m.id != message_id]
+    # Filter out the placeholder if it's an assistant message. 
+    # For WhatsApp, the message_id often points to the incoming user message itself.
+    valid_msgs = []
+    for m in full_history:
+        if m.id == message_id:
+            if m.role == 'assistant':
+                continue # Skip placeholder
+        valid_msgs.append(m)
 
     raw_history = []
     user_input = None

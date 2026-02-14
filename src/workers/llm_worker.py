@@ -64,12 +64,14 @@ async def process_job(payload_data):
             
             async with httpx.AsyncClient() as client:
                 try:
-                    await client.post(node_api_url, json={
-                        "number": assistant_msg.from_number, 
+                    payload = {
+                        "number": recipient_id, 
                         "message": response_text.strip() or "None",
                         "conversation_id": assistant_msg.conversation_id,
-                        "group_id": recipient_id
-                    })
+                        "group_id": recipient_id if assistant_msg.group_id else None
+                    }
+                    logger.info(f"Payload to Node: {payload}")
+                    await client.post(node_api_url, json=payload)
                 except Exception as e:
                     logger.error(f"Failed to notify Node service: {e}")
         else:
