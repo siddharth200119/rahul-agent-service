@@ -26,7 +26,10 @@ async def create_message(conversation_id: int, data: MessageCreate):
         
         # 3. Enqueue Job for Worker
         from src.utils.redis import enqueue_job
-        await enqueue_job(assistant_msg.id)
+        await enqueue_job({
+            "message_id": assistant_msg.id,
+            "message_type": "default"
+        })
         
         # 4. Return Assistant Message (so client can subscribe to its ID)
         return APIOutput.success(data=assistant_msg, status_code=201)

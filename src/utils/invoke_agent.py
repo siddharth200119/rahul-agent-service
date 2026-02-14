@@ -42,8 +42,7 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     full_history = sorted(desc_history, key=lambda m: m.timestamp)
     # print(f"full_history : {full_history}")
     # Filter out the current assistant placeholder
-    # valid_msgs = [m for m in full_history if m.id != message_id]
-    valid_msgs = full_history
+    valid_msgs = [m for m in full_history if m.id != message_id]
 
     raw_history = []
     user_input = None
@@ -95,15 +94,16 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     print(f"User Message: {user_input}")
     
     # 4. Stream Response
-    async for chunk in agent(user_input, stream=True):
-        
-        if isinstance(chunk, dict) and "content" in chunk:
-            content_obj = chunk["content"]
-            
-            if isinstance(content_obj, dict) and "content" in content_obj:
-                text_content = content_obj["content"]
-                if text_content:
-                    yield text_content
-            
-            elif isinstance(content_obj, str):
-                pass
+    try:
+        async for chunk in agent(user_input, stream=True):
+            if hasattr(chunk, "content") and chunk.content:
+                yield chunk.content
+            elif isinstance(chunk, dict) and "content" in chunk:
+                content_obj = chunk["content"]
+                if isinstance(content_obj, str):
+                    yield content_obj
+                elif isinstance(content_obj, dict) and "content" in content_obj:
+                    yield content_obj["content"]
+    except Exception as e:
+        logger.error(f"Error during agent execution: {e}")
+        yield f"Error: {str(e)}"

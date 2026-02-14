@@ -115,7 +115,7 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
         result["error"] = str(e)
         all_rows = []
 
-    yield json.dumps({ "type": "frontend_data", "rows": all_rows[:10] })
+    yield json.dumps({ "type": "table_data", "rows": all_rows[:10] })
     yield json.dumps(result, ensure_ascii=False)
 
 execute_query_tool_session = Tool(

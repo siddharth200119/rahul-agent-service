@@ -22,15 +22,30 @@ async def lifespan(app: FastAPI):
         await shutdown(app)
 
 
-app.add_middleware(LoggingMiddleware)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:5174", 
+        "http://localhost:5175", 
+        "http://192.168.1.62:5175",
+        "https://localhost:5173", 
+        "https://localhost:5174", 
+        "https://localhost:5175", 
+        "https://192.168.1.62:5175", 
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://192.168.1.62"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(LoggingMiddleware)
 
 app.include_router(APIRouter)
 app.include_router(SSERouter)
@@ -47,6 +62,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         port=port,
-        host=os.environ.get("HOST", "127.0.0.1"),
+        host=os.environ.get("HOST", "0.0.0.0"),
         reload=os.environ.get("ENV", "DEV") == "DEV",
     )
