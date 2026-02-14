@@ -3,7 +3,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
 from src.utils import logger
-
 import sqlite3
 from dotenv import load_dotenv
 
@@ -19,23 +18,7 @@ def get_app_db_config():
         "db_type": "postgres"
     }
 
-def get_db_config(profile: str = "default"):
-    """
-    Returns DB configuration. 
-    'default' uses existing env vars.
-    'inquiry' (example) uses a different set of env vars.
-    """
-    if profile == "backend":
-        return {
-            "host": os.getenv("INQUIRY_DB_HOST", "192.168.1.62"),
-            "port": os.getenv("INQUIRY_DB_PORT", "5432"),
-            "user": os.getenv("INQUIRY_DB_USER", "postgres"),
-            "password": os.getenv("INQUIRY_DB_PASS", "POSTGRES_PASS"),
-            "dbname": os.getenv("INQUIRY_DB_NAME", "erp"),
-            "db_type": "postgres"
-        }
-    
-    # Default behavior remains UNCHANGED
+def get_db_config():
     return {
         "host": os.getenv("TARGET_DB_HOST", os.getenv("DB_HOST", "localhost")),
         "port": os.getenv("TARGET_DB_PORT", os.getenv("DB_PORT", "5432")),
@@ -47,10 +30,12 @@ def get_db_config(profile: str = "default"):
 
 
 @contextmanager
-def get_db_connection(db_config: dict = None, profile: str = "default"):
+def get_db_connection(db_config: dict = None, **kwargs):
     """Context manager for database connections (Postgres or SQLite)"""
     conn = None
-    config = db_config or get_db_config(profile)
+    config = (db_config or get_db_config()).copy()
+    if kwargs:
+        config.update(kwargs)
     db_type = config.get("db_type", "postgres")
     
     try:
@@ -144,9 +129,11 @@ class LoggingCursor:
 
 
 @contextmanager
-def get_db_cursor(commit=True, db_config: dict = None, profile: str = "default"):
+def get_db_cursor(commit=True, db_config: dict = None, **kwargs):
     """Context manager for database cursor with auto-commit and logging"""
-    config = db_config or get_db_config(profile)
+    config = (db_config or get_app_db_config()).copy()
+    if kwargs:
+        config.update(kwargs)
     db_type = config.get("db_type", "postgres")
     
     with get_db_connection(config) as conn:

@@ -4,13 +4,13 @@ from RAW.modals.tools import ToolParam
 from src.utils import logger
 from src.utils.database import get_db_connection
 
-def get_schema(table_names: list[str] = None) -> str:
+def get_schema(table_names: list[str] = None, dbname: str = "erp") -> str:
     """
     Fetches the schema (table name, column name, data type) for the specified tables
     from the target database. If no tables are specified, fetches all public tables.
     """
     try:
-        with get_db_connection() as conn:
+        with get_db_connection(dbname=dbname) as conn:
             cursor = conn.cursor()
 
             if table_names:
@@ -34,13 +34,13 @@ def get_schema(table_names: list[str] = None) -> str:
             rows = cursor.fetchall()
             
             if not rows:
-                return "No schema found or no tables matched."
+                return f"No schema found for database '{dbname}' or no tables matched."
 
             schema_dict = {}
             for table, column, dtype in rows:
                 schema_dict.setdefault(table, []).append(f"{column} ({dtype})")
 
-            output_lines = []
+            output_lines = [f"Database: {dbname}", ""]
             for table, columns in schema_dict.items():
                 output_lines.append(f"Table: {table}")
                 for col in columns:
@@ -65,6 +65,13 @@ get_schema_tool = Tool(
             description="Optional list of table names to fetch schema for. If omitted, returns all public tables.",
             items={"type": "string"},
             required=False
+        ),
+        ToolParam(
+            name="dbname",
+            type="string",
+            description="The database to fetch schema from (e.g., 'erp'). Defaults to 'erp'.",
+            required=False,
+            default="erp"
         )
     ]
 )

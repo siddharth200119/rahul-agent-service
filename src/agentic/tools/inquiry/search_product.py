@@ -18,7 +18,7 @@ async def search_products(query: str):
     
     try:
         # Using the existing get_db_cursor from your db file
-        with get_db_cursor(profile="backend") as cur:
+        with get_db_cursor() as cur:
             cur.execute(sql, (search_term, search_term))
             results = cur.fetchall()
             
