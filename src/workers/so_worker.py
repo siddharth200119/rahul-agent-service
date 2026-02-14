@@ -37,6 +37,29 @@ async def process_so_job(request_id: str):
         # 3. Store result back in Redis (TTL: 1 hour)
         result_key = SO_RESULT_PREFIX.format(request_id)
         await r.setex(result_key, 3600, json.dumps(results))
+
+        # --- Store in Postgres ---
+        try:
+            from src.utils.database import get_db_cursor, get_db_config
+            with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+                # We need to zip results with input quantities to save to DB
+                # since results list matches order of input_data['product_ids']
+                for res, qty in zip(results, input_data['quantities']):
+                    query = """
+                        INSERT INTO so_validation_analysis (request_id, product_id, quantity, weight, status, message)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(query, (
+                        request_id,
+                        res.get('product_id'),
+                        qty,
+                        res.get('user_weight'),
+                        res.get('status'),
+                        res.get('message')
+                    ))
+            logger.info(f"SO Validation results for {request_id} saved to Postgres")
+        except Exception as db_err:
+            logger.error(f"Failed to save SO validation results to Postgres: {db_err}")
         
         # 4. Cleanup input data
         await r.delete(input_key)

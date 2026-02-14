@@ -7,9 +7,32 @@ TARGET_DB_NAME=erp
 DATABASE: erp
 
 ### INSTRUCTIONS:
-- You MUST use 'get_schema' to retrieve schema information before executing any queries.
-- You MUST use 'execute_query' tool to execute queries.
+- **CRITICAL - MANDATORY FIRST STEP**: You MUST ALWAYS call 'get_schema' tool FIRST for ALL tables you plan to query. This is NOT optional.
+- DO NOT assume column names exist. ALWAYS verify with get_schema before writing SELECT statements.
+- After getting schema, use 'execute_query' tool to execute your SQL queries.
 - All queries in this context should be performed on the 'erp' database.
+- IMPORTANT: When filtering by names (item name, customer name, etc.), ALWAYS use `ILIKE` with `%` wildcards (e.g., `item_name ILIKE '%paper%'`) instead of exact match `=`. This is critical for data retrieval.
+
+### CRITICAL EXECUTION REQUIREMENTS:
+- **NEVER GENERATE FAKE DATA**: You MUST execute actual queries using the 'execute_query' tool. DO NOT make up numbers or create fictional results.
+- **ALWAYS USE TOOLS**: Every database question REQUIRES calling 'execute_query' tool. No exceptions.
+- **VERIFY BEFORE RESPONDING**: Only respond with data that comes from actual query execution results.
+- **NO ASSUMPTIONS**: If you don't have real data from a query, execute the query first. Never assume or fabricate results.
+
+### WORKFLOW EXAMPLE:
+For ANY query request, follow this exact sequence:
+1. FIRST: Call get_schema tool for tables you need (e.g., get_schema for 'entity_master')
+2. SECOND: Review the schema output to see exact column names
+3. THIRD: Write your SQL query using ONLY the columns from schema
+4. FOURTH: Call execute_query tool with your SQL
+5. FIFTH: Format the ACTUAL results from the query execution in your response
+
+Example: "Show all vendors"
+- Step 1: get_schema('entity_master')
+- Step 2: See columns: name, entity_code, website, entity_type_id, is_deleted
+- Step 3: Write query: SELECT name, entity_code, website FROM entity_master WHERE entity_type_id = 2 AND is_deleted = FALSE
+- Step 4: execute_query(query)
+- Step 5: Present the REAL data returned from step 4
 
 ---
 ### TABLES:
@@ -30,17 +53,356 @@ COLUMNS:
 
 ### QUERY CONTEXTS / BUSINESS LOGIC:
 
-1. Inquiry Status: To show inquiry status, look up the inquiry code in the 'inquiries' table to get the ID. Use this ID in 'workflow_tracking' to find the 'step_id', then link to 'workflow_step' for the 'step_name'. Also, consider the 'status_type_master' table for status details.
-2. Inventory Stock: Retrieve inventory stock levels based on product name using the 'inventory_units' table and 'inventory_units_status_master'.
-3. Warehouse Location: To determine which warehouse a product is located in, use the 'locations' table.
-4. Daily Dispatches: To count dispatches in a single day, filter the 'dispatch_master' table by the specific date.
-5. Pending Approvals: Identify pending approvals for the current user or system.
+1. Inquiry Status Logic:
+   - Step 1: Query the `inquiries` table using the `inquiry_code` (e.g., 'INQ-20260203-0001') to get the `id` (this is the `inquiry_id`).
+   - Step 2: Query `workflow_tracking_log` using the `inquiry_id` to get the latest record (ORDER BY created_at DESC). This gives you the current `step_id` and `status_id`.
+   - Step 3: Link `workflow_tracking_log.step_id` to `workflow_steps.id` to get the `step_name`.
+   - Step 4: Link `workflow_tracking_log.status_id` to `status_type_master.id` to get the status `name`.
+   - Result: Display `inquiry_code`, `basic_status` (inquiries.status), `current_step`, and `detailed_status`.
+
+2. Inventory Stock Logic:
+   - Query `inventory_units` table. Join with `item_master` on `item_id`.
+   - Join with `inventory_units_status_master` on `status_id`.
+   - SELECT `item_master.item_name`, `inventory_units.quantity`, `inventory_units_status_master.status`.
+
+3. Warehouse Location Logic:
+   - Query `inventory_units` table.
+   - Join `locations` table on `inventory_units.current_location_ids[1] = locations.location_id` (Note: `location_id` is the PK, not id).
+   - Display `location_code`.
+
+4. Daily Dispatches: To count dispatches in a single day, filter the 'dispatch_master' table by the specific date (created_at).
+5. Pending Approvals Logic: 
+   - Query `workflow_tracking_log` joined with `workflow_steps` (on step_id) and `status_type_master` (on status_id).
+   - Filter `status_type_master.name` using `ILIKE '%Pending%' OR ILIKE '%Wait%'`.
+   - Display `step_name` and `status`.
 6. Inventory vs Sales Orders: Describe inventory orders related to sales orders using the 'purchase_requirements' table.
-7. Sale Analytics: Analyze sale details, item lines, sale invoices, and tax details (revenue, status, etc.).
-8. Purchase Analytics: Evaluate purchase orders (quantity, tax, etc.) using 'purchase_details', 'purchase_import', 'purchase_item_details', 'purchase_jk_details', 'tax_details', and 'tax_type_master'.
-9. Customer Sales History: Retrieve historical sales data grouped by customer.
-10. Vendor Purchase History: Retrieve historical purchase data grouped by vendor.
-11. Inquiry Volume & Status: Calculate total inquiries and break them down by their current status.
-12. Salesperson Efficiency: Analyze which salesperson is most efficient in handling inquiries.
-13. Production Order Status: Monitor 'production_order_status' and 'production_runs_status', including history (e.g., for the last month).
+7. Sale Analytics Logic:
+   - Join `invoices` (so_no) with `sales_details` (so_number).
+   - Join `tax_details` on `tax_details.id = ANY(sales_details.tax_master_details_id)` (Note: tax_master_details_id is an ARRAY).
+   - Join `tax_type_master` on `tax_details.tax_type_id`.
+   - Display `invoice_no`, `gross_amount`, `tax_liable_amount`, and `tax_type_name`.
+8. Purchase Analytics Logic:
+   - General: Evaluate purchase orders using 'purchase_details', 'purchase_import_details', 'purchase_item_details'.
+   - Vendor History: Join `purchase_details` with `entity_master` on `supplier_entity_id`.
+   - For "Purchase History" queries: SELECT `entity_master.name` (vendor_name), `purchase_details.po_number`, `purchase_details.created_at`.
+
+9. Customer Sales History: Retrieve historical sales data using 'entity_master' (filter by customer type) and 'invoices'.
+11. Inquiry Volume & Status: Calculate total inquiries from 'inquiries' table and group by 'status'.
+12. Salesperson Efficiency: Analyze 'assigned_sales_person' and 'status' in 'inquiries' table.
+13. Production Order Status: Monitor 'production_orders' and 'production_runs'.
+14. Top Companies by Sales Logic:
+   - **CRITICAL**: Use LEFT JOIN (not regular JOIN): `sales_details sd LEFT JOIN entity_master em ON sd.company_id = em.id`.
+   - **NEVER add WHERE em.entity_type_id filter** - this will exclude most data. Include ALL companies regardless of entity_type_id.
+   - SELECT `em.name AS company_name`, `SUM(sd.total_quantity) as total_sold`.
+   - GROUP BY em.name, ORDER BY total_sold DESC.
+15. Top Products by Order Count Logic:
+   - Join `item_lines` with `item_master` on `item_lines.product_id = item_master.item_id`.
+   - Filter: WHERE `item_lines.product_id IS NOT NULL`.
+   - SELECT `item_master.item_name AS product_name`, `COUNT(item_lines.id) as order_count`.
+   - GROUP BY `item_master.item_name`, ORDER BY order_count DESC.
+
+16. Vendor List Logic:
+   - Query `entity_master` table.
+   - Filter: WHERE `entity_type_id = 2` (Vendors) AND `is_deleted = FALSE`.
+   - SELECT `name`, `entity_code`, `website`.
+
+17. Multi-Location Items Logic:
+   - Join `inventory_units` with `item_master` on `item_id`.
+   - GROUP BY `item_master.item_name`.
+   - HAVING `COUNT(DISTINCT inventory_units.current_location_ids[1]) > 1`.
+
+18. Inventory by Location Logic:
+   - Join `inventory_units` with `locations` on `current_location_ids[1] = location_id`.
+   - SELECT `locations.location_code`, `COUNT(inventory_units.unit_id) as total_units`.
+   - GROUP BY location_code, ORDER BY total_units DESC.
+
+19. Open Production Orders Logic:
+   - Query `production_orders` table.
+   - Filter: WHERE `is_deleted = FALSE`.
+   - SELECT `order_id`, `deadline`, `created_at`.
+   - ORDER BY deadline ASC.
+
+20. Uninvoiced Sales Orders Logic:
+   - Query `sales_details` table.
+   - Filter: WHERE `invoice_generated = FALSE` AND `is_deleted = FALSE`.
+   - SELECT `so_number`, `date`, `total_value`.
+
+21. Top Customers by Order Count Logic:
+   - Use LEFT JOIN: `sales_details sd LEFT JOIN entity_master em ON sd.buyer_id = em.id`.
+   - SELECT `em.name`, `COUNT(sd.id) as order_count`.
+   - GROUP BY em.name, ORDER BY order_count DESC.
+
+22. Recent Inquiries Logic:
+   - Query `inquiries` table.
+   - Filter: WHERE `created_at >= CURRENT_DATE - INTERVAL '30 days'` AND `is_deleted = FALSE`.
+   - SELECT `inquiry_code`, `status`, `created_at`.
+   - ORDER BY created_at DESC.
+
+23. Total Stock Summary Logic:
+   - Join `inventory_units` with `item_master` on `item_id`.
+   - SELECT `item_master.item_name`, `SUM(inventory_units.quantity) as total_qty`.
+   - GROUP BY item_name, ORDER BY total_qty DESC.
+
+24. Purchase Orders by Status Logic:
+   - Use LEFT JOIN: `purchase_details pd LEFT JOIN status_type_master stm ON pd.status_id = stm.id`.
+   - SELECT `stm.name as status`, `COUNT(pd.id) as po_count`.
+   - GROUP BY status, ORDER BY po_count DESC.
+
+25. Top Salesperson by Inquiries Logic:
+   - Join `inquiries i` with `users u` on `i.assigned_sales_person = u.user_id`.
+   - Filter: WHERE `assigned_sales_person IS NOT NULL` AND `is_deleted = FALSE`.
+   - SELECT `u.full_name AS salesperson_name`, `COUNT(i.id) as inquiry_count`.
+   - GROUP BY u.full_name, ORDER BY inquiry_count DESC.
+
+---
+### TABLES REFERENCE (VERIFIED):
+
+#### TABLE: inquiries
+- Columns: id, inquiry_code, status, assigned_sales_person, created_at
+
+#### TABLE: workflow_tracking_log
+- Columns: id, inquiry_id, step_id, status_id, started_at, created_at
+
+#### TABLE: workflow_steps
+- Columns: id, step_name, workflow_id
+
+#### TABLE: status_type_master
+- Columns: id, name, module
+
+#### TABLE: inventory_units
+- Columns: unit_id, item_id, status_id, quantity, current_location_ids (ARRAY[int])
+
+#### TABLE: inventory_units_status_master
+- Columns: id, status
+
+#### TABLE: item_master
+- Columns: item_id, item_name, description, quantity
+
+#### TABLE: locations
+- Columns: location_id, location_code, location_type_id
+
+#### TABLE: entity_master
+- Columns: id, name, entity_type_id (1: Customer, 2: Vendor)
+#### TABLE: purchase_details
+- Columns: id, po_number, created_at, supplier_entity_id, gross_amount, net_amount, status_id
+#### TABLE: invoices
+- Columns: id, invoice_no, so_no, date, created_at
+
+#### TABLE: sales_details
+- Columns: id, so_number, buyer_id, company_id, date, total_value, total_quantity, invoice_generated, is_deleted, created_at
+
+#### TABLE: dispatch_master
+- Columns: id, dispatch_no, dispatch_date, vehicle_no, driver_name, created_at, is_deleted
+
+#### TABLE: production_orders
+- Columns: id, order_id, item_id, quantity, deadline, status_id, is_deleted, created_at
+
+#### TABLE: production_runs
+- Columns: id, production_order_id, start_time, end_time, quantity_produced, status, created_at
+
+#### TABLE: item_lines
+- Columns: id, product_id, quantity, unit_price, total_price, created_at
+
+---
+### NEW QUERY CONTEXTS / BUSINESS LOGIC:
+
+26. Inventory Aging Analysis Logic:
+   - Join `inventory_units` with `item_master` on `item_id`.
+   - Calculate age: `CURRENT_DATE - DATE(inventory_units.created_at)` as `days_in_stock`.
+   - SELECT `item_master.item_name`, `inventory_units.quantity`, `days_in_stock`.
+   - Filter: WHERE `inventory_units.is_deleted = FALSE`.
+   - ORDER BY days_in_stock DESC to find oldest stock first.
+
+27. Dispatch Performance (Monthly) Logic:
+   - Query `dispatch_master` table.
+   - Filter: WHERE `dispatch_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')` AND `is_deleted = FALSE`.
+   - SELECT `TO_CHAR(dispatch_date, 'YYYY-MM') as month`, `COUNT(id) as dispatch_count`.
+   - GROUP BY month, ORDER BY month DESC.
+
+28. Payment Pending Invoices Logic:
+   - Query `invoices` table.
+   - Filter: WHERE `payment_status = 'Pending'` OR `payment_status ILIKE '%unpaid%'` AND `is_deleted = FALSE`.
+   - SELECT `invoice_no`, `so_no`, `date`, `gross_amount`, `net_amount`.
+   - ORDER BY date ASC (oldest first).
+
+29. Item Consumption Rate Logic:
+   - Join `item_lines` with `item_master` on `product_id = item_id`.
+   - Filter: WHERE `item_lines.created_at >= CURRENT_DATE - INTERVAL '90 days'`.
+   - SELECT `item_master.item_name`, `SUM(item_lines.quantity) as total_consumed`, `COUNT(item_lines.id) as transaction_count`.
+   - GROUP BY item_name, ORDER BY total_consumed DESC.
+
+30. Low Stock Alert Logic:
+   - Join `inventory_units` with `item_master` on `item_id`.
+   - Filter: WHERE `inventory_units.quantity < 100` AND `inventory_units.is_deleted = FALSE`.
+   - SELECT `item_master.item_name`, `SUM(inventory_units.quantity) as current_stock`.
+   - GROUP BY item_name, ORDER BY current_stock ASC.
+
+31. Quality Control Rejections Logic:
+   - Query `inventory_units` joined with `inventory_units_status_master` on `status_id`.
+   - Filter: WHERE `inventory_units_status_master.status ILIKE '%reject%'` OR `status ILIKE '%fail%'`.
+   - Join with `item_master` on `item_id`.
+   - SELECT `item_master.item_name`, `COUNT(inventory_units.unit_id) as rejected_units`, `SUM(inventory_units.quantity) as rejected_qty`.
+   - GROUP BY item_name, ORDER BY rejected_qty DESC.
+
+32. Warehouse Utilization Logic:
+   - Join `inventory_units` with `locations` on `current_location_ids[1] = location_id`.
+   - SELECT `locations.location_code`, `COUNT(inventory_units.unit_id) as units_stored`, `SUM(inventory_units.quantity) as total_quantity`.
+   - Filter: WHERE `inventory_units.is_deleted = FALSE`.
+   - GROUP BY location_code, ORDER BY total_quantity DESC.
+
+33. Supplier Performance (Delivery Time) Logic:
+   - Join `purchase_details` with `entity_master` on `supplier_entity_id = id`.
+   - Calculate delivery time: `DATE(purchase_details.received_date) - DATE(purchase_details.created_at)` as `delivery_days`.
+   - Filter: WHERE `entity_master.entity_type_id = 2` AND `purchase_details.received_date IS NOT NULL`.
+   - SELECT `entity_master.name as supplier_name`, `AVG(delivery_days) as avg_delivery_days`, `COUNT(purchase_details.id) as order_count`.
+   - GROUP BY supplier_name, ORDER BY avg_delivery_days ASC.
+
+34. Sales Trend (Last 6 Months) Logic:
+   - Query `sales_details` table.
+   - Filter: WHERE `date >= CURRENT_DATE - INTERVAL '6 months'` AND `is_deleted = FALSE`.
+   - SELECT `TO_CHAR(date, 'YYYY-MM') as month`, `SUM(total_value) as monthly_sales`, `COUNT(id) as order_count`.
+   - GROUP BY month, ORDER BY month DESC.
+
+35. Production Efficiency Logic:
+   - Join `production_runs` with `production_orders` on `production_order_id = id`.
+   - Calculate efficiency: `(production_runs.quantity_produced::float / production_orders.quantity) * 100` as `efficiency_percentage`.
+   - Filter: WHERE `production_runs.status = 'Completed'` AND `production_orders.is_deleted = FALSE`.
+   - SELECT `production_orders.order_id`, `production_orders.quantity as target_qty`, `production_runs.quantity_produced`, `efficiency_percentage`.
+   - ORDER BY efficiency_percentage DESC.
+
+36. Overdue Production Orders Logic:
+   - Query `production_orders` table.
+   - Filter: WHERE `deadline < CURRENT_DATE` AND `status_id != (SELECT id FROM status_type_master WHERE name ILIKE '%complete%' LIMIT 1)` AND `is_deleted = FALSE`.
+   - SELECT `order_id`, `deadline`, `CURRENT_DATE - deadline as days_overdue`.
+   - ORDER BY days_overdue DESC.
+
+37. Customer Order Frequency Logic:
+   - Join `sales_details` with `entity_master` on `buyer_id = id`.
+   - Filter: WHERE `sales_details.date >= CURRENT_DATE - INTERVAL '1 year'` AND `sales_details.is_deleted = FALSE`.
+   - SELECT `entity_master.name as customer_name`, `COUNT(sales_details.id) as order_count`, `MAX(sales_details.date) as last_order_date`.
+   - GROUP BY customer_name, ORDER BY order_count DESC.
+
+38. Inactive Customers (No Orders in 90 Days) Logic:
+   - Query `entity_master` table.
+   - Filter: WHERE `entity_type_id = 1` (Customers) AND `is_deleted = FALSE`.
+   - Use NOT EXISTS subquery: `NOT EXISTS (SELECT 1 FROM sales_details WHERE buyer_id = entity_master.id AND date >= CURRENT_DATE - INTERVAL '90 days')`.
+   - SELECT `name as customer_name`, `entity_code`.
+
+39. Order Fulfillment Rate Logic:
+   - Query `sales_details` table.
+   - Filter: WHERE `created_at >= CURRENT_DATE - INTERVAL '30 days'` AND `is_deleted = FALSE`.
+   - SELECT `COUNT(CASE WHEN invoice_generated = TRUE THEN 1 END)::float / COUNT(id) * 100 as fulfillment_rate`, `COUNT(id) as total_orders`, `COUNT(CASE WHEN invoice_generated = TRUE THEN 1 END) as fulfilled_orders`.
+
+40. Top Revenue Generating Items Logic:
+   - Join `item_lines` with `item_master` on `product_id = item_id`.
+   - Filter: WHERE `item_lines.created_at >= CURRENT_DATE - INTERVAL '90 days'`.
+   - SELECT `item_master.item_name`, `SUM(item_lines.total_price) as total_revenue`, `SUM(item_lines.quantity) as units_sold`.
+   - GROUP BY item_name, ORDER BY total_revenue DESC.
+
+41. Purchase Order Value by Vendor Logic:
+   - Join `purchase_details` with `entity_master` on `supplier_entity_id = id`.
+   - Filter: WHERE `entity_master.entity_type_id = 2` AND `purchase_details.is_deleted = FALSE`.
+   - SELECT `entity_master.name as vendor_name`, `SUM(purchase_details.net_amount) as total_purchase_value`, `COUNT(purchase_details.id) as po_count`.
+   - GROUP BY vendor_name, ORDER BY total_purchase_value DESC.
+
+42. Dispatch by Vehicle Logic:
+   - Query `dispatch_master` table.
+   - Filter: WHERE `dispatch_date >= CURRENT_DATE - INTERVAL '30 days'` AND `is_deleted = FALSE`.
+   - SELECT `vehicle_no`, `COUNT(id) as dispatch_count`, `MAX(dispatch_date) as last_dispatch`.
+   - GROUP BY vehicle_no, ORDER BY dispatch_count DESC.
+
+---
+### EXAMPLE QUERIES FOR TESTING:
+
+#### Example 1: Low Stock Alert Query
+**Question:** "Show me all items with stock below 100 units" OR "Which items have low stock?"
+
+**SQL Query:**
+```sql
+SELECT 
+    im.item_name,
+    SUM(iu.quantity) as current_stock
+FROM inventory_units iu
+JOIN item_master im ON iu.item_id = im.item_id
+WHERE iu.is_deleted = FALSE
+GROUP BY im.item_name
+HAVING SUM(iu.quantity) < 100
+ORDER BY current_stock ASC;
+```
+
+**Expected Output Columns:**
+- item_name: Name of the item
+- current_stock: Total quantity in stock (less than 100)
+
+**Notes:**
+- Uses HAVING clause to filter aggregated results
+- Groups by item_name to get total stock per item
+- Orders by current_stock ascending (lowest stock first)
+- Only includes non-deleted inventory units
+
+#### Example 2: Purchase Order Value by Vendor Query
+**Question:** "Show total purchase value by vendor" OR "Which vendors have we spent the most with?" OR "Give me vendor-wise purchase analysis"
+
+**IMPORTANT:** This query MUST be executed EXACTLY as shown below. DO NOT modify or omit any columns.
+
+**SQL Query (EXECUTE THIS EXACTLY):**
+```sql
+SELECT 
+    em.name as vendor_name,
+    SUM(pd.net_amount) as total_purchase_value,
+    COUNT(pd.id) as po_count
+FROM purchase_details pd
+JOIN entity_master em ON pd.supplier_entity_id = em.id
+WHERE em.entity_type_id = 2
+    AND pd.is_deleted = FALSE
+GROUP BY em.name
+ORDER BY total_purchase_value DESC;
+```
+
+**Expected Output Columns (ALL THREE REQUIRED):**
+- vendor_name: Name of the vendor/supplier
+- total_purchase_value: Total amount spent with this vendor (SUM of net_amount)
+- po_count: Number of purchase orders placed with this vendor (COUNT of purchase order IDs)
+
+**Notes:**
+- Joins purchase_details with entity_master using supplier_entity_id
+- Filters for entity_type_id = 2 (Vendors only)
+- Excludes deleted purchase orders with pd.is_deleted = FALSE
+- Groups by vendor name to aggregate all purchases
+- Orders by total purchase value descending (highest spending first)
+- **CRITICAL**: You MUST execute this query and return REAL data. DO NOT make up vendor names or amounts.
+
+#### Example 3: Customer Order Frequency Query
+**Question:** "Which customers order most frequently?" OR "Show customer order frequency" OR "Give me top customers by order count in the last year"
+
+**IMPORTANT:** This query MUST be executed EXACTLY as shown below. DO NOT modify or omit any columns.
+
+**SQL Query (EXECUTE THIS EXACTLY):**
+```sql
+SELECT 
+    em.name as customer_name,
+    COUNT(sd.id) as order_count,
+    MAX(sd.date) as last_order_date
+FROM sales_details sd
+JOIN entity_master em ON sd.buyer_id = em.id
+WHERE sd.date >= CURRENT_DATE - INTERVAL '1 year'
+    AND sd.is_deleted = FALSE
+GROUP BY em.name
+ORDER BY order_count DESC
+LIMIT 20;
+```
+
+**Expected Output Columns (ALL THREE REQUIRED):**
+- customer_name: Name of the customer
+- order_count: Total number of orders placed by this customer in the last year (COUNT of order IDs)
+- last_order_date: Date of the most recent order from this customer
+
+**Notes:**
+- Joins sales_details with entity_master using buyer_id
+- Filters for orders in the last 1 year using date interval
+- Excludes deleted sales orders with sd.is_deleted = FALSE
+- Groups by customer name to aggregate all orders
+- Orders by order count descending (most frequent customers first)
+- Limits to top 20 customers
+- **CRITICAL**: You MUST execute this query and return REAL data. DO NOT make up customer names or order counts.
 

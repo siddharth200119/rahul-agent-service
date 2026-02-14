@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
-import uuid
 import json
 from src.models import APIOutput
 from src.utils.redis import get_redis
+from src.utils.database import get_next_request_id
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ class SOValidatorRequest(BaseModel):
 async def validate_so(data: SOValidatorRequest):
     try:
         # 1. Generate unique request ID
-        request_id = str(uuid.uuid4())
+        request_id = get_next_request_id("SO")
         
         # 2. Store input data for the worker to pick up
         r = await get_redis()

@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.utils.database import get_db_cursor
+from src.utils.database import get_db_cursor, get_db_config
 from src.utils import logger
 import asyncio
 from src.utils.redis import update_state, append_chunk
@@ -7,7 +7,7 @@ from src.utils.redis import update_state, append_chunk
 class PerformanceService:
     @staticmethod
     def get_grn_data(grn_number: str):
-        with get_db_cursor() as cursor:
+        with get_db_cursor(db_config=get_db_config()) as cursor:
             # Step 1: Get GRN header info
             query = "SELECT id, expected_delivery_date, actual_receipt_date FROM grns WHERE grn_no = %s"
             cursor.execute(query, (grn_number,))
@@ -138,6 +138,22 @@ class PerformanceService:
             await update_state(report_id, "done")
             logger.info(f"Report {report_id} generated successfully")
             
+            # --- Store in Postgres ---
+            try:
+                from src.utils.redis import get_stream_history
+                chunks = await get_stream_history(report_id)
+                full_report = "".join(chunks)
+                
+                with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+                    query = """
+                        INSERT INTO vendor_performance_analysis (request_id, grn_number, report)
+                        VALUES (%s, %s, %s)
+                    """
+                    cursor.execute(query, (report_id, grn_number, full_report))
+                logger.info(f"Report {report_id} saved to Postgres")
+            except Exception as db_err:
+                logger.error(f"Failed to save report to Postgres: {db_err}")
+                
         except Exception as e:
             logger.error(f"Error generating report {report_id}: {e}")
             await update_state(report_id, "error", error=str(e))

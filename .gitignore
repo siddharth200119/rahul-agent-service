@@ -10,3 +10,7 @@ wheels/
 .venv
 .env
 .marscode
+
+# Local data and reports
+database_session/
+*.pdf
