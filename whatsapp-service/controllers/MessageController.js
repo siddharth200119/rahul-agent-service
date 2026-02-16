@@ -6,23 +6,28 @@ class MessageController {
   }
 
   sendMessage = async (req, res) => {
-    // console.log(`Send message is called ${req}`);
+    // Destructure is_group from the request body
+    const { number, message, conversation_id, group_id } = req.body;
 
-    const { number, message, is_reply } = req.body;
     try {
-      const result = await this.messenger.sendMessage(number, message);
+      let jid = group_id.includes("@") ? group_id : `${group_id}@g.us`;
 
-      if (!is_reply) {
-        await this.db.saveMessage({
-          whatsapp_id: result.response.id.id,
-          from_number: result.response.id.remote,
-          body: message,
-          is_from_me: true,
-        });
-      }
+      console.log(`Sending message to JID: ${jid}`);
+
+      const result = await this.messenger.sendMessage(jid, message);
+      // console.log(result);
+      await this.db.saveMessage({
+        whatsapp_id: result.response.id.id,
+        from_number: number,
+        body: message,
+        is_from_me: true,
+        conversation_id: conversation_id,
+        group_id: group_id ? jid : null,
+      });
 
       res.json({ status: "sent" });
     } catch (error) {
+      console.error("Error in sendMessage controller:", error);
       res.status(500).json({ error: "Failed to send message" });
     }
   };
