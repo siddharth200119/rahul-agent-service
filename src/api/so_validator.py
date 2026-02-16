@@ -41,6 +41,16 @@ async def validate_so(data: SOValidatorRequest):
 @router.get("/so/results/{request_id}")
 async def get_so_results(request_id: str):
     try:
+        # 1. Try to fetch from ERP Database first
+        from src.utils.database import get_db_cursor, get_db_config
+        with get_db_cursor(commit=False, db_config=get_db_config()) as cursor:
+            query = "SELECT product_id, quantity, weight, status, message FROM so_validation_analysis WHERE request_id = %s"
+            cursor.execute(query, (request_id,))
+            rows = cursor.fetchall()
+            if rows:
+                return APIOutput.success(data=rows, message="Results retrieved from database")
+
+        # 2. Fallback to Redis
         r = await get_redis()
         result_key = SO_RESULT_PREFIX.format(request_id)
         data = await r.get(result_key)
@@ -54,6 +64,6 @@ async def get_so_results(request_id: str):
             
             return APIOutput.failure(message="Results not found or expired.", status_code=404)
         
-        return APIOutput.success(data=json.loads(data))
+        return APIOutput.success(data=json.loads(data), message="Results retrieved from cache")
     except Exception as e:
         return APIOutput.failure(message=str(e))

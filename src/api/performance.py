@@ -80,6 +80,25 @@ async def get_performance_report_result(report_id: str):
     Get the full performance report results (non-streaming)
     """
     try:
+        # 1. Try to fetch from ERP Database first
+        from src.utils.database import get_db_cursor, get_db_config
+        with get_db_cursor(commit=False, db_config=get_db_config()) as cursor:
+            query = "SELECT report FROM vendor_performance_analysis WHERE request_id = %s"
+            cursor.execute(query, (report_id,))
+            rows = cursor.fetchall()
+            
+            if rows:
+                reports = [row['report'] for row in rows]
+                return APIOutput.success(
+                    data={
+                        "status": "done",
+                        "reports": reports if len(reports) > 1 else None,
+                        "report": "\n\n---\n\n".join(reports) if len(reports) > 1 else reports[0]
+                    },
+                    message="Report retrieved successfully from database"
+                )
+
+        # 2. Fallback to Redis (useful for reports currently being generated)
         state = await get_message_state(report_id)
         if not state:
             return APIOutput.failure(message="Report not found", status_code=404)
@@ -93,7 +112,7 @@ async def get_performance_report_result(report_id: str):
                 "report": full_report,
                 "error": state.get("error")
             },
-            message="Report retrieved successfully"
+            message="Report retrieved successfully from cache"
         )
     except Exception as e:
         return APIOutput.failure(message=str(e))
