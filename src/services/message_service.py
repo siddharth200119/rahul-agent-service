@@ -1,7 +1,7 @@
 from typing import List, Optional
 import json
 from src.utils.database import get_db_cursor
-from src.models.messages import MessageCreate, MessageUpdate, Message
+from src.models.messages import MessageCreate, MessageUpdate, Message, WhatsappMessage
 
 class MessageService:
     @staticmethod
@@ -26,7 +26,7 @@ class MessageService:
     @staticmethod
     def get_message(id: int) -> Optional[Message]:
         query = """
-            SELECT id, conversation_id, role, content, metadata, timestamp
+            SELECT id, from_number, conversation_id, role, content, metadata, timestamp
             FROM messages
             WHERE id = %s;
         """
@@ -34,7 +34,7 @@ class MessageService:
             cursor.execute(query, (id,))
             row = cursor.fetchone()
             if row:
-                return Message(**row)
+                return WhatsappMessage(**row)
             return None
 
     @staticmethod

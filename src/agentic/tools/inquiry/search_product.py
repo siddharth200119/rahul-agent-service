@@ -1,6 +1,7 @@
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 from src.utils import logger, get_db_cursor
+from src.utils.database import get_db_config
 
 async def search_products(query: str):
     """
@@ -18,7 +19,8 @@ async def search_products(query: str):
     
     try:
         # Using the existing get_db_cursor from your db file
-        with get_db_cursor() as cur:
+        print(f"Databse config = {get_db_config()}")
+        with get_db_cursor(db_config=get_db_config()) as cur:
             cur.execute(sql, (search_term, search_term))
             results = cur.fetchall()
             

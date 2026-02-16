@@ -56,9 +56,8 @@ async def process_job(payload_data):
         if message_type == "whatsapp":
                 
             node_api_url = f"{os.getenv('WHATSAPP_HOST', 'http://127.0.0.1:8080')}/send" 
-            recipient_id = assistant_msg.group_id if assistant_msg.group_id else assistant_msg.from_number
+            recipient_id = assistant_msg.from_number
             
-            clean_recipient = recipient_id.split('@')[0] if recipient_id else None
 
             logger.info(f"Sending response to recipient: {recipient_id}")
             
@@ -68,7 +67,7 @@ async def process_job(payload_data):
                         "number": recipient_id, 
                         "message": response_text.strip() or "None",
                         "conversation_id": assistant_msg.conversation_id,
-                        "group_id": recipient_id if assistant_msg.group_id else None
+                        "group_id": assistant_msg.group_id
                     }
                     logger.info(f"Payload to Node: {payload}")
                     await client.post(node_api_url, json=payload)
