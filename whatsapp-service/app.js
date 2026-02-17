@@ -53,6 +53,12 @@ messenger.onMessage(async (msg) => {
       console.log(`🚫 Message from unauthorized group ${msg.from}. Ignoring.`);
       return;
     }
+
+    if (!isGroup) {
+      console.log(`🚫 Ignoring personal chat message from ${msg.from}`);
+      return;
+    }
+
     console.log(`🔍 Looking up POC for mobile: ${mobileNumber}`);
 
     // 2. Map phone number to user using the filter payload
