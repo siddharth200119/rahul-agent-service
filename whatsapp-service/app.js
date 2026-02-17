@@ -35,13 +35,29 @@ app.use("/", messageRoutes(messageCtrl, webhookCtrl));
 // --- EVENT LISTENERS ---
 
 messenger.onMessage(async (msg) => {
-  console.log(`📩 Incoming message from ${msg.from}: ${msg.body}`);
+  console.log(`📩 Incoming message from ${msg.from}`);
   try {
     // 1. Clean the incoming number (e.g., "917229091491@c.us" -> "7229091491")
     const contact = await msg.getContact();
     const rawNumber = contact.number;
     const mobileNumber =
       rawNumber.length > 10 ? rawNumber.slice(-10) : rawNumber;
+
+    const isGroup = msg.from.endsWith("@g.us");
+    const allowedGroups = process.env.ALLOWED_GROUP_IDS
+      ? process.env.ALLOWED_GROUP_IDS.split(",").map((id) => id.trim())
+      : [];
+
+    // 🚫 If message is from group but NOT in allowed list → ignore
+    if (isGroup && !allowedGroups.includes(msg.from)) {
+      console.log(`🚫 Message from unauthorized group ${msg.from}. Ignoring.`);
+      return;
+    }
+
+    if (!isGroup) {
+      console.log(`🚫 Ignoring personal chat message from ${msg.from}`);
+      return;
+    }
 
     console.log(`🔍 Looking up POC for mobile: ${mobileNumber}`);
 
@@ -129,7 +145,6 @@ messenger.onMessage(async (msg) => {
     }
 
     // 5. Save message and trigger services
-    const isGroup = msg.from.endsWith("@g.us");
     console.log(
       `💾 Saving message to database for conversation ${conversation.id} (Group: ${isGroup})`
     );
