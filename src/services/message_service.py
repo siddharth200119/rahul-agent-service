@@ -26,7 +26,7 @@ class MessageService:
     @staticmethod
     def get_message(id: int) -> Optional[Message]:
         query = """
-            SELECT id, from_number, conversation_id, role, content, metadata, timestamp
+            SELECT id, conversation_id, role, content, metadata, timestamp
             FROM messages
             WHERE id = %s;
         """
@@ -34,7 +34,7 @@ class MessageService:
             cursor.execute(query, (id,))
             row = cursor.fetchone()
             if row:
-                return WhatsappMessage(**row)
+                return Message(**row)
             return None
 
     @staticmethod
