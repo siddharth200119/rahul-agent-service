@@ -49,7 +49,7 @@ async def convert_to_json(
 
     for doc in all_documents:
         file_bytes: bytes = await doc.read()
-        texts[doc.filename] = await process_file(file_data=file_bytes, llm=vision_llm)
+        texts[doc.filename] = await process_file(file_data=file_bytes, llm=vision_llm, file_path=doc.filename)
 
     if json_schema_string:
         output = await vision_llm.generate(prompt=f"Convert the following text to JSON based on the provided schema: {texts}", schema=schema)

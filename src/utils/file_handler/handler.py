@@ -78,12 +78,7 @@ async def process_file(file_data: Optional[bytes] = None, llm: Optional[BaseLLM]
         mime = kind.mime if kind else None
 
         if mime is None and file_path:
-            extension = None
-            if file_path is not None:
-                extension = Path(file_path).suffix.lower()
-            elif isinstance(file_path, str):
-                extension = Path(file_path).suffix.lower()
-
+            extension = Path(file_path).suffix.lower()
             if extension:
                 mime = {
                     ".txt": "text/plain",
@@ -102,6 +97,8 @@ async def process_file(file_data: Optional[bytes] = None, llm: Optional[BaseLLM]
                     ".jpg": "image/jpeg",
                     ".jpeg": "image/jpeg",
                     ".json": "text/plain",
+                    ".md": "text/plain",
+                    ".py": "text/plain",
                 }.get(extension, None)
 
         if logger:
