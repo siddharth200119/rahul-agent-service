@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, Form, UploadFile
 from typing import List, Optional
 from src.models.api_output import APIOutput as Output
-from src.agentic.llms.primary import get_primary_llm
+from src.agentic.llms.primary import get_primary_llm, get_vision_llm
 from RAW.modals import LLMCapability
 from src.utils.file_handler.handler import process_file
 from json import loads, JSONDecodeError
@@ -9,18 +9,7 @@ from jsonschema import Draft7Validator, exceptions as jsonschema_exceptions
 import json
 
 primary_llm = get_primary_llm()
-vision_llm = None
-if(LLMCapability.VISION not in primary_llm.capabilities):
-    from src.agentic.llms.vllm import VLLM
-    # In this project we only have VLLM for now, let's check if it has vision
-    if(LLMCapability.VISION in primary_llm.capabilities):
-        vision_llm = primary_llm
-    else:
-        # If primary doesn't have vision, we might need to find one that does
-        # For now, let's just use primary_llm or raise error if needed
-        vision_llm = primary_llm 
-else:
-    vision_llm = primary_llm
+vision_llm = get_vision_llm()
 
 router = APIRouter()
 

@@ -21,6 +21,8 @@ OPENAI_MODEL_CAPABILITIES: Dict[str, List[LLMCapability]] = {
     "google/gemma-3-12b-it": [LLMCapability.COMPLETION, LLMCapability.VISION],
     'Qwen/Qwen2-VL-7B': [LLMCapability.COMPLETION, LLMCapability.VISION],
     'Qwen/Qwen2.5-VL-7B-Instruct': [LLMCapability.COMPLETION, LLMCapability.VISION],
+    'glm-ocr:latest': [LLMCapability.COMPLETION, LLMCapability.VISION],
+    'glm-ocr': [LLMCapability.COMPLETION, LLMCapability.VISION],
 }
 
 _Role = Literal["user", "assistant", "system", "tool"]
