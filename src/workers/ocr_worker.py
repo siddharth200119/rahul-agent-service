@@ -3,9 +3,9 @@ import json
 import logging
 from src.utils import logger
 from src.services.ocr_service import OCRService
-from src.utils.minio_utils import minio_client
+from src.utils.s3_utils import s3_client
 from src.utils.file_handler.handler import process_file
-from src.agentic.llms.primary import get_vision_llm
+from src.agentic.llms.vision import get_vision_llm
 
 vision_llm = get_vision_llm()
 
@@ -17,8 +17,8 @@ async def process_ocr_task(task):
     logger.info(f"Worker processing OCR task {task_id}: {file_path}")
     
     try:
-        # 1. Fetch file from MinIO
-        file_bytes = minio_client.get_file_data(file_path)
+        # 1. Fetch file from S3
+        file_bytes = s3_client.get_file_data(file_path)
         
         # 2. Extract text from file
         # We use process_file which routes to appropriate parser based on extension/mime

@@ -6,13 +6,19 @@ import json
 class OCRService:
     @staticmethod
     def add_to_queue(filepath: str, json_schema: Dict[str, Any], priority: str) -> int:
+        logger.info(f"Adding task to queue: filepath={filepath}, priority='{priority}'")
+        
         # Map priority string to integer
         priority_map = {
             "high": 3,
             "medium": 2,
             "low": 1
         }
-        priority_val = priority_map.get(priority.lower(), 1)
+        
+        p_clean = str(priority or "low").strip().lower()
+        priority_val = priority_map.get(p_clean, 1)
+        
+        logger.info(f"Priority '{priority}' mapped to internal value {priority_val}")
 
         query = """
         INSERT INTO ocr_queue (filepath, json_schema, priority, status)
