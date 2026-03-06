@@ -30,7 +30,7 @@ def get_db_config():
 
 
 @contextmanager
-def get_db_connection(db_config: dict = None, **kwargs):
+def get_db_connection(db_config: dict = None, log_connection=True, **kwargs):
     """Context manager for database connections (Postgres or SQLite)"""
     conn = None
     config = (db_config or get_db_config()).copy()
@@ -48,12 +48,14 @@ def get_db_connection(db_config: dict = None, **kwargs):
                 user=config.get("user"),
                 password=config.get("password")
             )
-            logger.info(f"Postgres database connection established")
+            if log_connection:
+                logger.info(f"Postgres database connection established")
         elif db_type == "sqlite":
             db_path = config.get("db_path", "database.sqlite")
             logger.debug(f"Connecting to SQLite database: {db_path}")
             conn = sqlite3.connect(db_path)
-            logger.info(f"SQLite database connection established")
+            if log_connection:
+                logger.info(f"SQLite database connection established")
         else:
             raise ValueError(f"Unsupported db_type: {db_type}")
             
@@ -129,21 +131,21 @@ class LoggingCursor:
 
 
 @contextmanager
-def get_db_cursor(commit=True, db_config: dict = None, **kwargs):
+def get_db_cursor(commit=True, db_config: dict = None, log_queries=True, **kwargs):
     """Context manager for database cursor with auto-commit and logging"""
     config = (db_config or get_app_db_config()).copy()
     if kwargs:
         config.update(kwargs)
     db_type = config.get("db_type", "postgres")
     
-    with get_db_connection(config) as conn:
+    with get_db_connection(config, log_connection=log_queries) as conn:
         if db_type == "postgres":
             raw_cursor = conn.cursor(cursor_factory=RealDictCursor)
         elif db_type == "sqlite":
             conn.row_factory = sqlite3.Row
             raw_cursor = conn.cursor()
         
-        cursor = LoggingCursor(raw_cursor)
+        cursor = LoggingCursor(raw_cursor) if log_queries else raw_cursor
         try:
             yield cursor
             if commit:

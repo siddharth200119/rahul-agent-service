@@ -24,4 +24,5 @@ dependencies = [
     "opencv-python>=4.11.0.86",
     "av>=15.1.0",
     "textract>=1.6.5",
+    "minio>=7.2.20",
 ]
