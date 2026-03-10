@@ -129,7 +129,7 @@ class LoggingCursor:
 
 
 @contextmanager
-def get_db_cursor(commit=True, db_config: dict = None, **kwargs):
+def get_db_cursor(commit=True, db_config: dict = None, log_queries=True, **kwargs):
     """Context manager for database cursor with auto-commit and logging"""
     config = (db_config or get_app_db_config()).copy()
     if kwargs:
@@ -143,7 +143,7 @@ def get_db_cursor(commit=True, db_config: dict = None, **kwargs):
             conn.row_factory = sqlite3.Row
             raw_cursor = conn.cursor()
         
-        cursor = LoggingCursor(raw_cursor)
+        cursor = LoggingCursor(raw_cursor) if log_queries else raw_cursor
         try:
             yield cursor
             if commit:
