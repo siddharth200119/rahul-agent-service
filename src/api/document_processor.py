@@ -1,7 +1,6 @@
 from fastapi import APIRouter, File, Form, UploadFile, Depends, Request
 from typing import Optional
 from src.models.api_output import APIOutput as Output
-from src.agentic.llms.vision import get_vision_llm
 from json import loads, JSONDecodeError
 from jsonschema import Draft7Validator, exceptions as jsonschema_exceptions
 import json
@@ -9,8 +8,6 @@ import asyncio
 from sse_starlette.sse import EventSourceResponse
 from src.services.ocr_service import OCRService
 from src.middlewares.upload_middleware import upload_to_s3_middleware
-
-vision_llm = get_vision_llm()
 
 router = APIRouter()
 
