@@ -33,6 +33,9 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     if message_type == "whatsapp":
         from src.services.whatsapp_service import WhatsAppService
         data_service = WhatsAppService
+    elif message_type == "email":
+        from src.services.email_service import EmailService
+        data_service = EmailService
     else:
         from src.services.message_service import MessageService
         data_service = MessageService

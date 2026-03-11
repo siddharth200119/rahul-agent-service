@@ -32,6 +32,9 @@ async def process_job(payload_data):
             from src.services.whatsapp_service import WhatsAppService
             assistant_msg = WhatsAppService.get_message(message_id)
             print(f"Assistantaas message {assistant_msg}")
+        elif message_type == "email":
+            from src.services.email_service import EmailService
+            assistant_msg = EmailService.get_message(message_id)
         else:
             from src.services.message_service import MessageService
             assistant_msg = MessageService.get_message(message_id)
@@ -73,6 +76,24 @@ async def process_job(payload_data):
                     await client.post(node_api_url, json=payload)
                 except Exception as e:
                     logger.error(f"Failed to notify Node service: {e}")
+        elif message_type == "email":
+            # Send response via email service
+            node_api_url = f"http://localhost:{os.getenv('EMAIL_SERVICE_PORT', '3001')}/send"
+            recipient_email = assistant_msg.sender_email
+            
+            logger.info(f"Sending email response to: {recipient_email}")
+            
+            async with httpx.AsyncClient() as client:
+                try:
+                    payload = {
+                        "to": recipient_email,
+                        "subject": f"Re: {assistant_msg.thread_id}",
+                        "text": response_text.strip(),
+                        "thread_id": assistant_msg.thread_id
+                    }
+                    await client.post(node_api_url, json=payload)
+                except Exception as e:
+                    logger.error(f"Failed to send email via Node service: {e}")
         else:
             MessageService.update_message(message_id, update_data)
 

@@ -14,6 +14,42 @@ const WebhookController = require("./controllers/WebhookController");
 const messageRoutes = require("./routes/messageRoutes");
 const axios = require("axios");
 const config = require("./config");
+const Minio = require("minio");
+const { v4: uuidv4 } = require("uuid");
+
+const minioClient = new Minio.Client({
+  endPoint: config.minio.endPoint,
+  port: config.minio.port,
+  useSSL: config.minio.useSSL,
+  accessKey: config.minio.accessKey,
+  secretKey: config.minio.secretKey,
+});
+
+async function ensureBucket() {
+  try {
+    const exists = await minioClient.bucketExists(config.minio.bucket);
+    if (!exists) {
+      await minioClient.makeBucket(config.minio.bucket, "us-east-1");
+      console.log(`✅ Bucket "${config.minio.bucket}" created.`);
+    }
+  } catch (err) {
+    console.error("Error ensuring MinIO bucket:", err.message);
+  }
+}
+
+async function uploadToMinio(filename, buffer, mimetype) {
+  const objectName = `${uuidv4()}-${filename}`;
+  await minioClient.putObject(
+    config.minio.bucket,
+    objectName,
+    buffer,
+    buffer.length,
+    {
+      "Content-Type": mimetype,
+    }
+  );
+  return objectName;
+}
 
 const messenger = new MessagingProvider();
 const db = new MessageRepository();
@@ -144,7 +180,29 @@ messenger.onMessage(async (msg) => {
       return;
     }
 
-    // 5. Save message and trigger services
+    // 5. Handle Media if present
+    const attachmentLinks = [];
+    if (msg.hasMedia) {
+      try {
+        console.log(`📥 Downloading media...`);
+        const media = await msg.downloadMedia();
+        if (media) {
+          const buffer = Buffer.from(media.data, "base64");
+          const filename = media.filename || `attachment_${Date.now()}`;
+          const objectName = await uploadToMinio(
+            filename,
+            buffer,
+            media.mimetype
+          );
+          attachmentLinks.push(objectName);
+          console.log(`✅ Media uploaded: ${objectName}`);
+        }
+      } catch (mediaErr) {
+        console.error("❌ Media error:", mediaErr.message);
+      }
+    }
+
+    // 6. Save message and trigger services
     console.log(
       `💾 Saving message to database for conversation ${conversation.id} (Group: ${isGroup})`
     );
@@ -157,6 +215,7 @@ messenger.onMessage(async (msg) => {
       is_from_me: false,
       conversation_id: conversation.id,
       user_id: userId,
+      attachments: attachmentLinks.length > 0 ? attachmentLinks : null,
     };
 
     const id = await db.saveMessage(messageData);
@@ -176,4 +235,7 @@ messenger.onMessage(async (msg) => {
   }
 });
 
-app.listen(8080, () => console.log("Service running on port 8080"));
+app.listen(8080, async () => {
+  console.log("Service running on port 8080");
+  await ensureBucket();
+});

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -22,12 +22,24 @@ class Message(MessageBase):
     class Config:
         from_attributes = True
 
+class EmailMessage(MessageBase):
+    id: str
+    conversation_id: Optional[int] = None
+    timestamp: datetime
+    sender_email: str
+    receiver_email: str
+    thread_id: str
+
+    class Config:
+        from_attributes = True
+
 class WhatsappMessage(MessageBase):
     id: int
     conversation_id: int
     timestamp: datetime
     from_number: str
     group_id: Optional[str] = None
+    attachments: Optional[List[str]] = None
 
     class Config:
         from_attributes = True

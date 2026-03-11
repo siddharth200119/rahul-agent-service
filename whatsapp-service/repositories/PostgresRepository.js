@@ -9,12 +9,12 @@ class PostgresRepository extends BaseRepository {
     this.pool = new Pool(config.db);
   }
 
-  async saveMessage({ whatsapp_id, from_number, body, is_from_me, conversation_id, group_id }) {
+  async saveMessage({ whatsapp_id, from_number, body, is_from_me, conversation_id, group_id, attachments }) {
     // We use a CTE (WITH clause) to ensure we get an ID even if the conflict occurs
     const query = `
         WITH inserted AS (
-            INSERT INTO whatsapp_messages (whatsapp_id, from_number, body, is_from_me, conversation_id, group_id)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO whatsapp_messages (whatsapp_id, from_number, body, is_from_me, conversation_id, group_id, attachments)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (whatsapp_id) DO NOTHING
             RETURNING id
         )
@@ -24,7 +24,7 @@ class PostgresRepository extends BaseRepository {
         LIMIT 1;
     `;
 
-    const values = [whatsapp_id, from_number, body, is_from_me, conversation_id, group_id];
+    const values = [whatsapp_id, from_number, body, is_from_me, conversation_id, group_id, attachments];
     const result = await this.pool.query(query, values);
 
     // Return the ID of the record
