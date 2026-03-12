@@ -79,6 +79,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    tls: {
+        rejectUnauthorized: false
+    }
 });
 
 // IMAP Configuration
@@ -234,15 +237,14 @@ async function fetchNewEmails(connection) {
             // Store in DB
             const emailRecord = await Email.create({
                 sender_email: sender,
-                receiver_email: receiver, // Simplified, taking first
-                sender_role: 'user', // Incoming email is from user
+                receiver_email: receiver,
+                sender_role: 'user',
                 message_id: messageId,
                 in_reply_to: parentEmail?.id || null,
-                content: text || html, // Prefer text? Or store both? Schema has one content field.
+                content: text || html,
                 content_type: html ? 'text/html' : 'text/plain',
                 attachments: attachmentLinks,
-                thread_id: subject, // Simplified thread grouping by subject
-                // in_reply_to: ... resolve UUID from DB based on Message-ID if possible
+                thread_id: threadId, // Use the calculated stable threadId
             });
 
             console.log(`Stored email from ${sender}`);

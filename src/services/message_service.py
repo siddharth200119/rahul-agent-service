@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 import json
 from src.utils.database import get_db_cursor
 from src.models.messages import MessageCreate, MessageUpdate, Message, WhatsappMessage
@@ -24,7 +24,7 @@ class MessageService:
             return Message(**row)
 
     @staticmethod
-    def get_message(id: int) -> Optional[Message]:
+    def get_message(id: Union[int, str]) -> Optional[Message]:
         query = """
             SELECT id, conversation_id, role, content, metadata, timestamp
             FROM messages
@@ -66,7 +66,7 @@ class MessageService:
             return [Message(**row) for row in rows]
 
     @staticmethod
-    def update_message(id: int, data: MessageUpdate) -> Optional[Message]:
+    def update_message(id: Union[int, str], data: MessageUpdate) -> Optional[Message]:
         fields = []
         values = []
         if data.content is not None:
@@ -95,7 +95,7 @@ class MessageService:
             return None
 
     @staticmethod
-    def delete_message(id: int) -> bool:
+    def delete_message(id: Union[int, str]) -> bool:
         query = "DELETE FROM messages WHERE id = %s;"
         with get_db_cursor(commit=True) as cursor:
             cursor.execute(query, (id,))

@@ -52,7 +52,7 @@ services:
       context: ./email-service
     restart: always
     ports:
-      - "${EMAIL_SERVICE_PORT:-3001}:3001"
+      - "${EMAIL_SERVICE_PORT:-3001}:${EMAIL_SERVICE_PORT:-3001}"
     env_file:
       - .env
     environment:

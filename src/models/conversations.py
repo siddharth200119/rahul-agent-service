@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class ConversationBase(BaseModel):
     agent: str
     title: Optional[str] = None
+    metadata: Optional[dict] = {}
 
 class ConversationCreate(ConversationBase):
     user_id: int
@@ -18,6 +19,7 @@ class Conversation(ConversationBase):
     user_id: int
     created_at: datetime
     last_message_at: Optional[datetime] = None
+    metadata: Optional[dict] = {}
 
     class Config:
         from_attributes = True

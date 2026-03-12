@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 from redis.asyncio import Redis
 from src.utils import logger
 
@@ -89,7 +89,7 @@ async def claim_job() -> Optional[Dict[str, Any]]:
         return json.loads(result[1])
     return None
 
-async def update_state(message_id: int, status: str, message_type: str = "default", **kwargs):
+async def update_state(message_id: Union[int, str], status: str, message_type: str = "default", **kwargs):
     """
     Update status using type-aware keys
     """
@@ -101,7 +101,7 @@ async def update_state(message_id: int, status: str, message_type: str = "defaul
     await r.expire(state_key, TTL_SECONDS)
 
 
-async def append_chunk(message_id: int, chunk: str, message_type: str = "default"):
+async def append_chunk(message_id: Union[int, str], chunk: str, message_type: str = "default"):
     """
     Append text chunk to type-aware stream list
     """
@@ -111,19 +111,19 @@ async def append_chunk(message_id: int, chunk: str, message_type: str = "default
     await r.expire(stream_key, TTL_SECONDS)
 
 
-async def get_message_state(message_id: int, message_type: str = "default") -> dict:
+async def get_message_state(message_id: Union[int, str], message_type: str = "default") -> dict:
     r = await get_redis()
     state_key = STATE_KEY_PREFIX.format(message_type, message_id)
     return await r.hgetall(state_key)
 
 
-async def get_stream_history(message_id: int, message_type: str = "default") -> list[str]:
+async def get_stream_history(message_id: Union[int, str], message_type: str = "default") -> list[str]:
     r = await get_redis()
     stream_key = STREAM_KEY_PREFIX.format(message_type, message_id)
     return await r.lrange(stream_key, 0, -1)
 
 
-async def wait_for_stream_item(message_id: int, start_index: int, timeout: int = 20, message_type: str = "default") -> list[str]:
+async def wait_for_stream_item(message_id: Union[int, str], start_index: int, timeout: int = 20, message_type: str = "default") -> list[str]:
     """
     Wait for new items in the stream.
     Since Redis Lists don't support blocking read from specific index,

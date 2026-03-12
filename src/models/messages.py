@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ class MessageUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 class Message(MessageBase):
-    id: int
+    id: Union[int, str]
     conversation_id: int
     timestamp: datetime
 

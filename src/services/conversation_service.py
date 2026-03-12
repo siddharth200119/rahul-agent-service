@@ -6,19 +6,20 @@ class ConversationService:
     @staticmethod
     def create_conversation(data: ConversationCreate) -> Conversation:
         query = """
-            INSERT INTO conversations (user_id, agent, title)
-            VALUES (%s, %s, %s)
-            RETURNING id, user_id, agent, title, created_at, last_message_at;
+            INSERT INTO conversations (user_id, agent, title, metadata)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, user_id, agent, title, metadata, created_at, last_message_at;
         """
         with get_db_cursor(commit=True) as cursor:
-            cursor.execute(query, (data.user_id, data.agent, data.title))
+            import json
+            cursor.execute(query, (data.user_id, data.agent, data.title, json.dumps(data.metadata)))
             row = cursor.fetchone()
             return Conversation(**row)
 
     @staticmethod
     def get_conversation(id: int) -> Optional[Conversation]:
         query = """
-            SELECT id, user_id, agent, title, created_at, last_message_at
+            SELECT id, user_id, agent, title, metadata, created_at, last_message_at
             FROM conversations
             WHERE id = %s;
         """
@@ -32,7 +33,7 @@ class ConversationService:
     @staticmethod
     def get_conversations(user_id: int, limit: int = 10, offset: int = 0) -> List[Conversation]:
         query = """
-            SELECT id, user_id, agent, title, created_at, last_message_at
+            SELECT id, user_id, agent, title, metadata, created_at, last_message_at
             FROM conversations
             WHERE user_id = %s
             ORDER BY created_at DESC
@@ -63,11 +64,26 @@ class ConversationService:
             UPDATE conversations
             SET {", ".join(fields)}
             WHERE id = %s
-            RETURNING id, user_id, agent, title, created_at, last_message_at;
+            RETURNING id, user_id, agent, title, metadata, created_at, last_message_at;
         """
         
         with get_db_cursor(commit=True) as cursor:
             cursor.execute(query, tuple(values))
+            row = cursor.fetchone()
+            if row:
+                return Conversation(**row)
+            return None
+
+    @staticmethod
+    def find_by_metadata(key: str, value: str) -> Optional[Conversation]:
+        query = f"""
+            SELECT id, user_id, agent, title, metadata, created_at, last_message_at
+            FROM conversations
+            WHERE metadata->>%s = %s
+            LIMIT 1;
+        """
+        with get_db_cursor(commit=False) as cursor:
+            cursor.execute(query, (key, value))
             row = cursor.fetchone()
             if row:
                 return Conversation(**row)

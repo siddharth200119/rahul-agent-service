@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request
 from src.models import APIOutput
 from src.utils.redis import enqueue_job
 from src.utils import logger
+from src.services.conversation_service import ConversationService
+from src.models.conversations import ConversationCreate
 
 router = APIRouter()
 
@@ -12,14 +14,29 @@ async def handle_incoming_email(request: Request):
         logger.info(f"Incoming email webhook: {raw_data}")
         
         # Structure of raw_data from Node.js service:
-        # { "event": "new_email", "data": { "id": "uuid", "sender_email": "...", ... } }
+        # { "event": "new_email", "data": { "id": "uuid", "sender_email": "...", "thread_id": "...", ... } }
         
         email_data = raw_data.get("data", {})
         email_id = email_data.get("id")
+        thread_id = email_data.get("thread_id")
+        subject = email_data.get("subject", "No Subject")
         
         if not email_id:
             return APIOutput.failure(message="Missing email ID")
             
+        # Ensure conversation exists for this thread
+        if thread_id:
+            conv = ConversationService.find_by_metadata("email_thread_id", thread_id)
+            if not conv:
+                logger.info(f"Creating new conversation for email thread: {thread_id}")
+                conv_create = ConversationCreate(
+                    user_id=1, # Default user ID
+                    agent="DatabaseAgent",
+                    title=f"Email: {subject}",
+                    metadata={"email_thread_id": thread_id}
+                )
+                ConversationService.create_conversation(conv_create)
+        
         job_payload = {
             "message_id": email_id,
             "message_type": "email"
