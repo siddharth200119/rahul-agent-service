@@ -10,6 +10,7 @@ steps = [
             user_id BIGINT NOT NULL,
             agent VARCHAR(100) NOT NULL,
             title VARCHAR(255),
+            metadata JSONB DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             last_message_at TIMESTAMPTZ
         );
