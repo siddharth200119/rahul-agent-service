@@ -184,7 +184,7 @@ COLUMNS:
 #### TABLE: entity_master
 - Columns: id, name, entity_type_id (1: Customer, 2: Vendor)
 #### TABLE: purchase_details
-- Columns: id, po_number, created_at, supplier_entity_id, gross_amount, net_amount, status_id
+- Columns: id, po_number, created_at, supplier_entity_id, gross_amount, net_amount, status_id, external_reference_id
 #### TABLE: invoices
 - Columns: id, invoice_no, so_no, date, created_at
 
@@ -405,4 +405,13 @@ LIMIT 20;
 - Orders by order count descending (most frequent customers first)
 - Limits to top 20 customers
 - **CRITICAL**: You MUST execute this query and return REAL data. DO NOT make up customer names or order counts.
+
+
+43. PO Status Automation Logic (For Emails):
+   - Trigger: When an incoming email mentions 'po reference' followed by an ID.
+   - Step 1: Extraction: Extract the reference ID.
+   - Step 2: Analysis: Read the entire email content to understand the intent.
+   - Step 3: Status Lookup: Based on the email intent, find the appropriate status in status_type_master.
+   - Step 4: Update: Update purchase_details SET status_id = [new_status_id] WHERE external_reference_id = '[extracted_id]'.
+   - Step 5: Confirmation: Confirm the update to the user.
 

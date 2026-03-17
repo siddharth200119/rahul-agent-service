@@ -29,10 +29,16 @@ async def handle_incoming_email(request: Request):
             conv = ConversationService.find_by_metadata("email_thread_id", thread_id)
             if not conv:
                 logger.info(f"Creating new conversation for email thread: {thread_id}")
+                agent_name = "DatabaseAgent"
+                # Use incoming subject or fallback to a spaced version of the agent name
+                import re
+                fallback_title = re.sub(r'([a-z])([A-Z])', r'\1 \2', agent_name).strip()
+                conv_title = subject if subject and subject not in ["No Subject", "None", "null"] else fallback_title
+                
                 conv_create = ConversationCreate(
                     user_id=1, # Default user ID
-                    agent="DatabaseAgent",
-                    title=f"Email: {subject}",
+                    agent=agent_name,
+                    title=conv_title,
                     metadata={"email_thread_id": thread_id}
                 )
                 ConversationService.create_conversation(conv_create)

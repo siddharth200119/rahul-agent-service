@@ -83,14 +83,34 @@ async def process_job(payload_data):
             
             logger.info(f"Sending email response to: {recipient_email}")
             
+            # Use conversation title as fallback for subject if email subject is missing or generic
+            email_subject = assistant_msg.subject
+            if not email_subject or email_subject in ["No Subject", "None", "null", "undefined"]:
+                from src.services.conversation_service import ConversationService
+                conv = ConversationService.get_conversation(assistant_msg.conversation_id)
+                if conv:
+                    # Prefer conversation title if it's set and not generic
+                    if conv.title and conv.title not in ["No Subject", "None", "null", "undefined"]:
+                        email_subject = conv.title
+                    elif conv.agent:
+                        # Fallback to agent name (e.g. "DatabaseAgent" -> "Database Agent")
+                        import re
+                        email_subject = re.sub(r'([a-z])([A-Z])', r'\1 \2', conv.agent).strip()
+            
+            if not email_subject or email_subject in ["None", "null", "undefined"]:
+                email_subject = "Assistant Update"
+
             async with httpx.AsyncClient() as client:
                 try:
-                    original_subject = assistant_msg.subject or "No Subject"
+                    original_subject = email_subject
                     if not original_subject.lower().startswith("re:"):
                         subject = f"Re: {original_subject}"
                     else:
                         subject = original_subject
                         
+                    # For emails, we want to ensure we only send the acknowledgment if specified.
+                    # The prompt already instructs the agent to only give acknowledgment.
+                    # We send the full response_text which should now be just the acknowledgment.
                     payload = {
                         "to": recipient_email,
                         "subject": subject,
