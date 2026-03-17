@@ -8,6 +8,7 @@ module.exports = {
           id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
           message_id TEXT UNIQUE,
           thread_id TEXT,
+          subject TEXT,
           sender_email TEXT NOT NULL,
           receiver_email TEXT NOT NULL,
           sender_role VARCHAR(255) NOT NULL,

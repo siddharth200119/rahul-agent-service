@@ -32,6 +32,7 @@ const Email = sequelize.define('Email', {
     id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
     message_id: { type: DataTypes.TEXT, unique: true },
     thread_id: DataTypes.TEXT,
+    subject: DataTypes.TEXT,
     sender_email: { type: DataTypes.TEXT, allowNull: false },
     receiver_email: { type: DataTypes.TEXT, allowNull: false },
     sender_role: { type: DataTypes.STRING, allowNull: false }, // 'user' or 'assistant'
@@ -240,6 +241,7 @@ async function fetchNewEmails(connection) {
                 receiver_email: receiver,
                 sender_role: 'user',
                 message_id: messageId,
+                subject: subject,
                 in_reply_to: parentEmail?.id || null,
                 content: text || html,
                 content_type: html ? 'text/html' : 'text/plain',
@@ -325,6 +327,7 @@ app.post('/send', async (req, res) => {
             receiver_email: to,
             sender_role: 'assistant',
             message_id: cleanMessageId,
+            subject: subject,
             content: text || html,
             content_type: html ? 'text/html' : 'text/plain',
             thread_id: thread_id,

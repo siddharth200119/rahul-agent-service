@@ -85,9 +85,15 @@ async def process_job(payload_data):
             
             async with httpx.AsyncClient() as client:
                 try:
+                    original_subject = assistant_msg.subject or "No Subject"
+                    if not original_subject.lower().startswith("re:"):
+                        subject = f"Re: {original_subject}"
+                    else:
+                        subject = original_subject
+                        
                     payload = {
                         "to": recipient_email,
-                        "subject": f"Re: {assistant_msg.thread_id}",
+                        "subject": subject,
                         "text": response_text.strip(),
                         "thread_id": assistant_msg.thread_id
                     }

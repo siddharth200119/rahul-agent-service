@@ -9,6 +9,7 @@ class EmailService:
             SELECT 
                 id, 
                 thread_id,
+                subject,
                 sender_email,
                 receiver_email,
                 CASE WHEN sender_role = 'assistant' THEN 'assistant' ELSE 'user' END as role, 
@@ -45,6 +46,7 @@ class EmailService:
                     sender_email=row['sender_email'],
                     receiver_email=row['receiver_email'],
                     thread_id=row['thread_id'],
+                    subject=row.get('subject'),
                     timestamp=row['timestamp']
                 )
             return None

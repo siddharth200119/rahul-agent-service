@@ -29,6 +29,7 @@ class EmailMessage(MessageBase):
     sender_email: str
     receiver_email: str
     thread_id: str
+    subject: Optional[str] = None
 
     class Config:
         from_attributes = True
