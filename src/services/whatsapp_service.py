@@ -16,6 +16,7 @@ class WhatsAppService:
                 NULL as metadata, 
                 from_number,
                 group_id,
+                attachments,
                 timestamp
             FROM whatsapp_messages
             WHERE id = %s;
@@ -79,6 +80,7 @@ class WhatsAppService:
                 NULL as metadata, 
                 from_number,
                 group_id,
+                attachments,
                 timestamp;
         """
         

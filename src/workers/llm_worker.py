@@ -32,6 +32,9 @@ async def process_job(payload_data):
             from src.services.whatsapp_service import WhatsAppService
             assistant_msg = WhatsAppService.get_message(message_id)
             print(f"Assistantaas message {assistant_msg}")
+        elif message_type == "email":
+            from src.services.email_service import EmailService
+            assistant_msg = EmailService.get_message(message_id)
         else:
             from src.services.message_service import MessageService
             assistant_msg = MessageService.get_message(message_id)
@@ -73,6 +76,50 @@ async def process_job(payload_data):
                     await client.post(node_api_url, json=payload)
                 except Exception as e:
                     logger.error(f"Failed to notify Node service: {e}")
+        elif message_type == "email":
+            # Send response via email service
+            node_api_url = f"http://localhost:{os.getenv('EMAIL_SERVICE_PORT', '3001')}/send"
+            recipient_email = assistant_msg.sender_email
+            
+            logger.info(f"Sending email response to: {recipient_email}")
+            
+            # Use conversation title as fallback for subject if email subject is missing or generic
+            email_subject = assistant_msg.subject
+            if not email_subject or email_subject in ["No Subject", "None", "null", "undefined"]:
+                from src.services.conversation_service import ConversationService
+                conv = ConversationService.get_conversation(assistant_msg.conversation_id)
+                if conv:
+                    # Prefer conversation title if it's set and not generic
+                    if conv.title and conv.title not in ["No Subject", "None", "null", "undefined"]:
+                        email_subject = conv.title
+                    elif conv.agent:
+                        # Fallback to agent name (e.g. "DatabaseAgent" -> "Database Agent")
+                        import re
+                        email_subject = re.sub(r'([a-z])([A-Z])', r'\1 \2', conv.agent).strip()
+            
+            if not email_subject or email_subject in ["None", "null", "undefined"]:
+                email_subject = "Assistant Update"
+
+            async with httpx.AsyncClient() as client:
+                try:
+                    original_subject = email_subject
+                    if not original_subject.lower().startswith("re:"):
+                        subject = f"Re: {original_subject}"
+                    else:
+                        subject = original_subject
+                        
+                    # For emails, we want to ensure we only send the acknowledgment if specified.
+                    # The prompt already instructs the agent to only give acknowledgment.
+                    # We send the full response_text which should now be just the acknowledgment.
+                    payload = {
+                        "to": recipient_email,
+                        "subject": subject,
+                        "text": response_text.strip(),
+                        "thread_id": assistant_msg.thread_id
+                    }
+                    await client.post(node_api_url, json=payload)
+                except Exception as e:
+                    logger.error(f"Failed to send email via Node service: {e}")
         else:
             MessageService.update_message(message_id, update_data)
 

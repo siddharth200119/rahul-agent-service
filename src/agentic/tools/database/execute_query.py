@@ -28,13 +28,18 @@ async def execute_query_executor(dbname: str, query: str, download_excel: bool =
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query)
+            
+            # Explicitly commit for UPDATE/INSERT/DELETE/etc.
+            conn.commit()
 
             if cursor.description:
                 colnames = [desc[0] for desc in cursor.description]
                 rows = cursor.fetchall()
             else:
-                colnames = []
-                rows = []
+                # If no description, it was likely an UPDATE/INSERT/DELETE
+                colnames = ["rows_affected"]
+                rows = [[cursor.rowcount]]
+                yield f"Query executed successfully. Rows affected: {cursor.rowcount}"
 
         def serialize_value(val):
             if isinstance(val, Decimal):

@@ -33,6 +33,9 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
     if message_type == "whatsapp":
         from src.services.whatsapp_service import WhatsAppService
         data_service = WhatsAppService
+    elif message_type == "email":
+        from src.services.email_service import EmailService
+        data_service = EmailService
     else:
         from src.services.message_service import MessageService
         data_service = MessageService
@@ -85,7 +88,7 @@ async def invoke_agent(conversation_id: int, message_id: int, message_type: str 
             module = None
             if ":" in agent_name:
                 module = agent_name.split(":")[1]
-            agent = get_database_agent(user_id=conversation.user_id, history=raw_history, module=module)
+            agent = get_database_agent(user_id=conversation.user_id, history=raw_history, module=module, message_type=message_type)
         elif agent_name.startswith("inquiry"):
             agent = get_inquiry_agent(user_id=conversation.user_id, history=raw_history)
             print("I am inquiry")
