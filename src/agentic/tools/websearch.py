@@ -3,13 +3,13 @@ from bs4 import BeautifulSoup
 from RAW.modals import Tool
 from RAW.modals.tools import ToolParam
 import httpx
-def fetch_page(url: str) -> str:
+async def fetch_page(url: str) -> str:
     try:
         soup = BeautifulSoup(httpx.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True).text, "html.parser")
         [t.decompose() for t in soup(["script", "style", "nav", "footer"])]
         return " ".join(soup.get_text(separator=" ", strip=True).split())[:3000]
     except: return ""
-def duckduckgo_search(query: str) -> str:
+async def duckduckgo_search(query: str) -> str:
     with DDGS() as ddgs:
         results = list(ddgs.text(query, max_results=5)) or list(ddgs.news(query, max_results=5))
     if not results: return "No results found."
