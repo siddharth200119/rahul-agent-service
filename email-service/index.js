@@ -369,6 +369,12 @@ app.delete('/webhooks/:id', async (req, res) => {
 // Start Server
 app.listen(port, async () => {
     console.log(`Email service listening on port ${port}`);
+    try {
+        await sequelize.sync();
+        console.log('Database synced');
+    } catch (err) {
+        console.error('Database sync failed:', err);
+    }
     await ensureBucket();
     startImapListener();
 });

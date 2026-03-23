@@ -55,6 +55,10 @@ services:
       - "${EMAIL_SERVICE_PORT:-3001}:${EMAIL_SERVICE_PORT:-3001}"
     env_file:
       - .env
+    dns:
+      - 8.8.8.8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
