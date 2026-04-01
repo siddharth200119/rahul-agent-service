@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from src.utils.database import get_db_cursor, get_db_config
+from src.utils.database import get_db_cursor, get_app_db_config
 from src.utils import logger
 import json
 
@@ -25,7 +25,7 @@ class OCRService:
         VALUES (%s, %s, %s, 'pending')
         RETURNING id;
         """
-        with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+        with get_db_cursor(commit=True, db_config=get_app_db_config()) as cursor:
             cursor.execute(query, (filepath, json.dumps(json_schema), priority_val))
             result = cursor.fetchone()
             return result['id']
@@ -37,7 +37,7 @@ class OCRService:
         FROM ocr_queue
         WHERE id = %s;
         """
-        with get_db_cursor(db_config=get_db_config()) as cursor:
+        with get_db_cursor(db_config=get_app_db_config()) as cursor:
             cursor.execute(query, (task_id,))
             return cursor.fetchone()
 
@@ -61,7 +61,7 @@ class OCRService:
         )
         RETURNING id, filepath, json_schema, priority, status;
         """
-        with get_db_cursor(commit=True, log_queries=False, db_config=get_db_config()) as cursor:
+        with get_db_cursor(commit=True, log_queries=False, db_config=get_app_db_config()) as cursor:
             cursor.execute(query)
             return cursor.fetchone()
 
@@ -72,7 +72,7 @@ class OCRService:
         SET result = %s, status = %s
         WHERE id = %s;
         """
-        with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+        with get_db_cursor(commit=True, db_config=get_app_db_config()) as cursor:
             cursor.execute(query, (json.dumps(result), status, task_id))
 
     @staticmethod
@@ -82,5 +82,5 @@ class OCRService:
         SET status = %s
         WHERE id = %s;
         """
-        with get_db_cursor(commit=True, db_config=get_db_config()) as cursor:
+        with get_db_cursor(commit=True, db_config=get_app_db_config()) as cursor:
             cursor.execute(query, (status, task_id))
